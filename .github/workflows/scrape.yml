@@ -36,8 +36,13 @@ jobs:
       - name: 安裝相依套件
         run: pip install -e ".[dev,browser]"
 
-      - name: 安裝 Chromium
+      - name: 安裝 Chromium（Expedia 用）
         run: patchright install --with-deps chromium
+
+      - name: 安裝 xvfb（cruisedirect 用）
+        # SeleniumBase 的 UC/CDP 模式在無頭下過不了 Cloudflare，
+        # 需要 xvfb 提供虛擬顯示，讓它以「有頭」方式執行。
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq xvfb
 
       - name: 執行測試
         # 解析器測試跑在存下來的 HTML 上，能在真正擷取前先抓出程式錯誤

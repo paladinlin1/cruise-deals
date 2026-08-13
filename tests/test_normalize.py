@@ -157,3 +157,16 @@ class TestSplitPorts:
   def test_strips_ports_of_call_label(self):
     raw = "Ports of Call: Tokyo, Osaka, Kochi"
     assert normalize.split_ports(raw) == ("Tokyo", "Osaka", "Kochi")
+
+  def test_custom_separator_for_ports_containing_commas(self):
+    """cruisedirect 用 " - " 分隔，而港名本身含逗號（"Tokyo, Japan"），
+    用逗號切會把國名切成獨立的港口。"""
+    raw = "Tokyo, Japan - Kochi, Japan - Busan, South Korea"
+    assert normalize.split_ports(raw, separator=" - ") == (
+      "Tokyo, Japan", "Kochi, Japan", "Busan, South Korea",
+    )
+
+  def test_strips_singular_port_of_call_label(self):
+    # cruisedirect 用單數 "Port of Call"
+    raw = "Port of Call Tokyo, Japan - Kochi, Japan"
+    assert normalize.split_ports(raw, separator=" - ") == ("Tokyo, Japan", "Kochi, Japan")

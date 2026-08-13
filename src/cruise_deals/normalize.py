@@ -12,7 +12,12 @@ from decimal import Decimal, InvalidOperation
 from . import config
 
 # 港口欄位常見的前綴標籤，取 HTML text 後會混進來
-_LABEL_RE = re.compile(r"^\s*(?:Starts|Ends|Ports of Call|Departs|Returns)\s*:\s*", re.I)
+# 有些站的標籤後面沒有冒號（cruisedirect 是 "Port of Call Tokyo, Japan - ..."），
+# 故冒號設為可選。
+_LABEL_RE = re.compile(
+  r"^\s*(?:Starts|Ends|Ports? of Call|Departs|Departing From|Returns|Duration|Ship)\s*:?\s+",
+  re.I,
+)
 
 _WS_RE = re.compile(r"\s+")
 
@@ -131,9 +136,13 @@ def parse_nights(raw: str | int | None) -> int:
   raise ValueError(f"無法解析航行天數: {text!r}")
 
 
-def split_ports(raw: str | None) -> tuple[str, ...]:
-  """把逗號分隔的停靠港字串切成 tuple。"""
+def split_ports(raw: str | None, separator: str = ",") -> tuple[str, ...]:
+  """把停靠港字串切成 tuple。
+
+  分隔符號依來源而異：icruise 用逗號，cruisedirect 用 " - "
+  （因為它的港名本身就含逗號，例如 "Tokyo, Japan"）。
+  """
   text = strip_prefix_label(raw)
   if not text:
     return ()
-  return tuple(part.strip() for part in text.split(",") if part.strip())
+  return tuple(part.strip() for part in text.split(separator) if part.strip())

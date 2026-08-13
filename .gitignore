@@ -9,3 +9,10 @@ venv/
 
 # 執行失敗時的除錯產物（截圖／HTML），不進版控
 debug/
+
+# SeleniumBase 的工作產物
+downloaded_files/
+latest_logs/
+assets/
+geckodriver.log
+chromedriver.log

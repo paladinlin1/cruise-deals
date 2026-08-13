@@ -51,6 +51,17 @@ class TestDedupKey:
     b = make_deal(ship_name="  COSTA   SERENA ", cruise_line="costa cruises")
     assert a.dedup_key == b.dedup_key
 
+  def test_key_ignores_cruise_line_naming_differences(self):
+    """各站對船公司的寫法不同，不能因此把同一航次拆成兩筆。
+
+    icruise 寫 "Celebrity Cruises"，cruisedirect 的 logo 只給 "celebrity"。
+    船名（Celebrity Millennium）在全球郵輪業是唯一的，
+    加上出發日、夜數、出發港已足以識別同一航次。
+    """
+    a = make_deal(ship_name="Celebrity Millennium", cruise_line="Celebrity Cruises")
+    b = make_deal(ship_name="Celebrity Millennium", cruise_line="Celebrity")
+    assert a.dedup_key == b.dedup_key
+
   def test_different_sail_date_differs(self):
     assert make_deal().dedup_key != make_deal(sail_date=date(2026, 8, 17)).dedup_key
 

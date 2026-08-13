@@ -19,30 +19,26 @@
 |---|---|---|
 | **icruise.com** | ✅ 正常 | Server-rendered HTML，`httpx` + `selectolax` 直接解析 |
 | **expediacruises.com** | ✅ 正常 | Odysseus Swift API，用瀏覽器取得授權標頭後呼叫 JSON API |
-| **cruisedirect.com** | ❌ 被封鎖 | Cloudflare 全面阻擋自動化存取，詳見下方 |
+| **cruisedirect.com** | ✅ 正常 | Cloudflare 保護，用 SeleniumBase CDP Mode 通過 |
 
-### cruisedirect 為什麼抓不到
+### cruisedirect 的存取方式
 
-實測結果（2026-08-13）：
+該站以 Cloudflare 阻擋一般自動化存取。實測（2026-08-13）：
 
-- `httpx` 直接請求 → **403**，回應標頭 `Cf-Mitigated: challenge`
-- 換成瀏覽器 User-Agent → 403
-- patchright（undetected Chromium）**無頭**模式 → 挑戰頁 30 秒未解除
-- patchright **有頭**模式 → 同樣未解除
-- 連 `/robots.txt` 都回 **403**
+| 方式 | 結果 |
+|---|---|
+| `httpx` 直接請求 | ❌ 403，`Cf-Mitigated: challenge` |
+| 換瀏覽器 User-Agent | ❌ 403 |
+| patchright 無頭 | ❌ 挑戰頁 30 秒未解除 |
+| patchright 有頭 | ❌ 同樣未解除 |
+| **SeleniumBase CDP Mode** | ✅ **首次嘗試即通過** |
 
-連 robots.txt 都擋，代表站方是刻意且全面地拒絕自動化存取。
-要通過就得主動破解其機器人防護，本專案不做這件事。
+因此這一站用 `seleniumbase` 的 `sb.activate_cdp_mode()`。
+在 Linux（GitHub Actions）需要 `xvfb` 提供虛擬顯示，因為 UC 模式在無頭下過不了挑戰。
 
-此來源仍保留在每日流程中（逾時設為 25 秒，快速失敗），
-一旦對方放寬，程式會自動偵測到並把頁面存進 `debug/` 供補上解析器。
-它失敗**不會**影響其他兩個來源。
-
-若想省下這 25 秒，把 workflow 的擷取步驟改成：
-
-```bash
-python -m cruise_deals --sources icruise,expedia
-```
+**要用 `/search-results` 而不是 `/cruises/last-minute-cruises`。**
+後者是策展子集合，其 facet 清單裡查不到基隆，會整個港口漏掉。
+日期改由我們自己用 Unix 時間戳篩，不依賴對方對「last minute」的定義（他們設 3 個月）。
 
 ## 這個系統怎麼避免「安靜地壞掉」
 
@@ -62,7 +58,8 @@ python -m cruise_deals --sources icruise,expedia
 python -m venv .venv
 .venv\Scripts\activate            # Windows
 pip install -e ".[dev,browser]"
-patchright install chromium       # 瀏覽器型來源才需要
+patchright install chromium       # Expedia 用
+# cruisedirect 用 SeleniumBase，會自動下載 uc_driver；Linux 另需 apt install xvfb
 
 python -m cruise_deals                              # 全部來源
 python -m cruise_deals --sources icruise            # 只跑輕量來源（最快）
@@ -76,7 +73,7 @@ python -m cruise_deals --lookahead-days 60          # 改成看兩個月
 ## 測試
 
 ```bash
-pytest -q          # 184 個測試，約 2 秒
+pytest -q          # 220 個測試，約 2 秒
 ```
 
 測試全部跑在存下來的**真實**回應上（`tests/fixtures/`），不需要網路。
@@ -136,3 +133,11 @@ src/cruise_deals/
 - **網頁排序的 `dataset.sort || textContent` 是陷阱**：無報價時 `data-sort` 是
   空字串（falsy），會被誤退回讀「洽詢報價」文字，`parseFloat` 得到 NaN，
   導致「空值排最後」完全失效。這個 bug 是瀏覽器測試抓到的。
+- **cruisedirect 基隆頁面的出發城市欄位是空的**（東京／橫濱的有值）。
+  只靠該欄位判斷出發港會**安靜地漏掉整個港口**的航次。
+  解法：欄位為空時改用停靠港第一站，並在「有卡片卻解析出 0 筆」時拋 ParseError。
+- **cruisedirect 的港名含逗號**（"Tokyo, Japan"），停靠港要用 `" - "` 分隔，
+  用逗號切會把國名切成獨立港口。
+- **去重鍵不含船公司**：各站寫法差異太大（icruise `Celebrity Cruises`
+  vs cruisedirect logo 只給 `celebrity`），納入會讓同一航次無法跨來源合併。
+  船名在郵輪業是唯一的，加上出發日、夜數、出發港已足以識別。

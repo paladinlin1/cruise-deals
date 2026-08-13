@@ -13,8 +13,8 @@ from typing import Any
 
 from .normalize import clean_text
 
-# 去重鍵的型別：(船公司, 郵輪名, 出發日期, 夜數, 出發港)
-DedupKey = tuple[str, str, date, int, str]
+# 去重鍵的型別：(郵輪名, 出發日期, 夜數, 出發港)
+DedupKey = tuple[str, date, int, str]
 
 
 def _key_part(value: str) -> str:
@@ -50,9 +50,14 @@ class Deal:
 
   @property
   def dedup_key(self) -> DedupKey:
-    """跨來源辨識「同一個航次」的鍵。刻意不含 source 與 price。"""
+    """跨來源辨識「同一個航次」的鍵。刻意不含 source 與 price。
+
+    也刻意**不含船公司**：各站寫法差異太大
+    （icruise "Celebrity Cruises" vs cruisedirect logo "celebrity"），
+    納入會讓同一航次無法合併。船名在郵輪業是唯一的，
+    加上出發日、夜數、出發港已足以識別。
+    """
     return (
-      _key_part(self.cruise_line),
       _key_part(self.ship_name),
       self.sail_date,
       self.nights,

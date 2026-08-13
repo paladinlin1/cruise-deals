@@ -11,7 +11,10 @@ dependencies = [
 [project.optional-dependencies]
 # 瀏覽器型 scraper 才需要；純解析測試不必安裝
 browser = [
+  # Expedia：載入 SPA 並攔截其授權標頭
   "patchright>=1.49",
+  # cruisedirect：唯一實測能通過其 Cloudflare 挑戰的方案（CDP Mode）
+  "seleniumbase>=4.51",
 ]
 dev = [
   "pytest>=8.0",

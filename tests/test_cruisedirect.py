@@ -9,6 +9,8 @@
 
 from __future__ import annotations
 
+from datetime import date
+from decimal import Decimal
 from pathlib import Path
 
 import pytest
@@ -64,6 +66,215 @@ class TestParseSearchPage:
       cruisedirect.parse_search_page(html, title="Last Minute Cruises")
     # 訊息要告訴維護者下一步怎麼做
     assert "debug" in str(exc.value).lower()
+
+
+@pytest.fixture(scope="module")
+def tokyo_html() -> str:
+  # 以 facet 篩選出發城市=Tokyo、日期=2026-08-13~09-12 後抓下來的真實頁面
+  return (FIXTURES / "cruisedirect_tokyo.html").read_text(encoding="utf-8")
+
+
+@pytest.fixture(scope="module")
+def yokohama_html() -> str:
+  return (FIXTURES / "cruisedirect_yokohama.html").read_text(encoding="utf-8")
+
+
+@pytest.fixture(scope="module")
+def tokyo(tokyo_html):
+  return cruisedirect.parse_search_page(tokyo_html, title="Last Minute Cruise Deals")
+
+
+@pytest.fixture(scope="module")
+def yokohama(yokohama_html):
+  return cruisedirect.parse_search_page(yokohama_html, title="Last Minute Cruise Deals")
+
+
+class TestParseTokyoPage:
+  def test_finds_every_sailing(self, tokyo):
+    # 一張 article 卡片可能含多個出發日期（各自一個 price-table）
+    assert len(tokyo) == 3
+
+  def test_sail_dates(self, tokyo):
+    assert sorted(d.sail_date for d in tokyo) == [
+      date(2026, 8, 18), date(2026, 8, 30), date(2026, 9, 11),
+    ]
+
+  def test_common_fields(self, tokyo):
+    deal = min(tokyo, key=lambda d: d.sail_date)
+    assert deal.source == "cruisedirect"
+    assert deal.depart_port == "Tokyo"
+    assert deal.ship_name == "Celebrity Millennium"
+    assert deal.nights == 12
+    assert deal.currency == "USD"
+
+  def test_lowest_of_all_cabin_types(self, tokyo):
+    by_date = {d.sail_date: d for d in tokyo}
+    # Aug 18: Interior $2,772 / Balcony $3,001 -> 取 2772
+    assert by_date[date(2026, 8, 18)].price == Decimal("2772")
+    # Sep 11: Interior $1,991 / Balcony $2,712 / Suite $15,714 -> 取 1991
+    assert by_date[date(2026, 9, 11)].price == Decimal("1991")
+
+  def test_sailing_with_only_suite_available(self, tokyo):
+    by_date = {d.sail_date: d for d in tokyo}
+    # Aug 30 只有 Suite 有價
+    assert by_date[date(2026, 8, 30)].price == Decimal("11343")
+
+  def test_cruise_line_resolved_from_logo(self, tokyo):
+    # logo 的 alt 只有 "celebrity"，要還原成完整名稱才對得上其他來源
+    assert all(d.cruise_line == "Celebrity Cruises" for d in tokyo)
+
+  def test_ports_of_call_split_on_dash_not_comma(self, tokyo):
+    # 港名本身含逗號（"Tokyo, Japan"），用逗號切會切壞
+    deal = min(tokyo, key=lambda d: d.sail_date)
+    assert deal.ports_of_call[0] == "Tokyo, Japan"
+    assert all(", " in p or len(p.split()) <= 3 for p in deal.ports_of_call)
+
+  def test_detail_url_points_at_the_specific_sailing(self, tokyo):
+    # 每個 price-table 的「Select」按鈕帶該航次專屬的 package id，
+    # 比整張卡片共用的行程連結精確
+    deal = min(tokyo, key=lambda d: d.sail_date)
+    assert deal.detail_url.startswith("https://book.cruisedirect.com/swift/cruise/package/")
+
+  def test_each_sailing_gets_its_own_url(self, tokyo):
+    assert len({d.detail_url for d in tokyo}) == 3
+
+  def test_scraped_at_is_timezone_aware(self, tokyo):
+    assert all(d.scraped_at.tzinfo is not None for d in tokyo)
+
+
+class TestParseYokohamaPage:
+  def test_finds_every_sailing(self, yokohama):
+    assert len(yokohama) == 3
+
+  def test_fields(self, yokohama):
+    assert {d.depart_port for d in yokohama} == {"Yokohama"}
+    assert {d.ship_name for d in yokohama} == {"Diamond Princess"}
+    assert {d.cruise_line for d in yokohama} == {"Princess Cruises"}
+    assert {d.nights for d in yokohama} == {10}
+
+  def test_prices(self, yokohama):
+    by_date = {d.sail_date: d for d in yokohama}
+    assert by_date[date(2026, 8, 26)].price == Decimal("1962")
+    assert by_date[date(2026, 9, 5)].price == Decimal("2417")
+
+  def test_sailing_with_no_available_cabins_has_no_price(self, yokohama):
+    # Aug 16 四種房型都是 "-"
+    by_date = {d.sail_date: d for d in yokohama}
+    assert by_date[date(2026, 8, 16)].price is None
+
+
+@pytest.fixture(scope="module")
+def keelung_html() -> str:
+  # 由 /search-results?f[0]=departure_city:743704 抓下來的真實頁面
+  return (FIXTURES / "cruisedirect_keelung.html").read_text(encoding="utf-8")
+
+
+@pytest.fixture(scope="module")
+def keelung(keelung_html):
+  return cruisedirect.parse_search_page(keelung_html, title="Cruise Search Results")
+
+
+class TestParseKeelungPage:
+  """基隆頁面的出發城市欄位是空的，必須用停靠港第一站補上。
+
+  這是真實資料裡的陷阱：欄位存在但沒有內容，若不處理會安靜地漏掉整頁資料。
+  """
+
+  def test_finds_sailings_despite_empty_departure_city_field(self, keelung):
+    assert len(keelung) == 3
+
+  def test_departure_port_falls_back_to_first_port_of_call(self, keelung):
+    assert {d.depart_port for d in keelung} == {"Keelung"}
+
+  def test_ship_and_line(self, keelung):
+    assert {d.ship_name for d in keelung} == {"Costa Serena"}
+    assert {d.cruise_line for d in keelung} == {"Costa Cruises"}
+
+  def test_nights_parsed(self, keelung):
+    assert {d.nights for d in keelung} <= {3, 4}
+
+  def test_ports_of_call_without_country_suffix(self, keelung):
+    # 這一頁的港名沒有國名（"Keelung (taipei)" 而非 "Keelung, Taiwan"）
+    deal = keelung[0]
+    assert deal.ports_of_call[0] == "Keelung (taipei)"
+
+
+class TestLoudFailureOnUnparseableArticles:
+  """有卡片卻一筆都解析不出來 -> 版面改了，要大聲失敗而不是回空清單。"""
+
+  def test_raises_when_articles_exist_but_none_parse(self):
+    html = (
+      "<html><body>"
+      '<article class="node node--type-sailing">'
+      '<div class="nothing-we-recognise">x</div>'
+      "</article>"
+      "</body></html>"
+    )
+    with pytest.raises(ParseError):
+      cruisedirect.parse_search_page(html, title="Cruise Search Results")
+
+
+class TestDateWindowFilter:
+  def test_filters_out_sailings_beyond_window(self, tokyo_html):
+    deals = cruisedirect.parse_search_page(
+      tokyo_html, title="ok", start=date(2026, 8, 13), end=date(2026, 9, 1)
+    )
+    # Sep 11 應被排除
+    assert sorted(d.sail_date for d in deals) == [date(2026, 8, 18), date(2026, 8, 30)]
+
+  def test_no_window_returns_everything(self, tokyo_html):
+    assert len(cruisedirect.parse_search_page(tokyo_html, title="ok")) == 3
+
+
+class TestPriceCells:
+  def test_dash_means_cabin_unavailable(self):
+    assert cruisedirect.lowest_of_cabins(["-", "-", "-", "-"]) is None
+
+  def test_picks_minimum(self):
+    assert cruisedirect.lowest_of_cabins(
+      ["$2,772 USD", "-", "$3,001 USD", "-"]
+    ) == Decimal("2772")
+
+  def test_ignores_non_price_text(self):
+    assert cruisedirect.lowest_of_cabins(["Select", "-", "$500 USD"]) == Decimal("500")
+
+  def test_empty_list(self):
+    assert cruisedirect.lowest_of_cabins([]) is None
+
+
+class TestSailDateParsing:
+  def test_takes_departure_date_from_range(self):
+    raw = "Aug 30, 2026 - Sep 11, 2026 Sun - Fri Bonus Details"
+    assert cruisedirect.parse_sail_date_cell(raw) == date(2026, 8, 30)
+
+  def test_handles_missing_return_date(self):
+    assert cruisedirect.parse_sail_date_cell("Aug 30, 2026") == date(2026, 8, 30)
+
+  def test_unparseable_returns_none(self):
+    assert cruisedirect.parse_sail_date_cell("Bonus Details") is None
+
+
+class TestBuildSearchUrl:
+  def test_includes_departure_city_and_date_facets(self):
+    url = cruisedirect.build_search_url(2604, date(2026, 8, 13), date(2026, 9, 12))
+    assert "departure_city%3A2604" in url
+    assert "departure_date" in url
+    assert url.startswith("https://www.cruisedirect.com/search-results?")
+
+  def test_date_range_uses_unix_timestamps(self):
+    url = cruisedirect.build_search_url(2604, date(2026, 8, 13), date(2026, 9, 12))
+    # 2026-08-13T00:00:00Z = 1786579200
+    assert "1786579200" in url
+
+  def test_covers_all_three_target_ports(self):
+    assert set(cruisedirect.DEPARTURE_CITY_IDS) == {"Keelung", "Tokyo", "Yokohama"}
+
+  def test_uses_general_search_endpoint_not_the_curated_list(self):
+    """/cruises/last-minute-cruises 是策展子集合，其 facet 清單裡沒有基隆。
+    改用 /search-results 這個完整搜尋端點，日期自己篩。"""
+    url = cruisedirect.build_search_url(743704, date(2026, 8, 13), date(2026, 9, 12))
+    assert "/search-results?" in url
+    assert "last-minute-cruises" not in url
 
 
 class TestFailureIsGraceful:
