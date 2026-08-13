@@ -1,0 +1,83 @@
+name: 擷取郵輪 Last Minute Deals
+
+on:
+  schedule:
+    # UTC 21:00 = 台北時間隔日 05:00
+    - cron: "0 21 * * *"
+  workflow_dispatch:
+    inputs:
+      sources:
+        description: "要擷取的來源（逗號分隔，留空為全部）"
+        required: false
+        default: ""
+
+# 需要寫入權限才能把結果 commit 回 repo
+permissions:
+  contents: write
+
+concurrency:
+  # 同時只跑一個，避免兩次執行互相覆蓋 data/
+  group: scrape
+  cancel-in-progress: false
+
+jobs:
+  scrape:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+
+      - name: 安裝相依套件
+        run: pip install -e ".[dev,browser]"
+
+      - name: 安裝 Chromium
+        run: patchright install --with-deps chromium
+
+      - name: 執行測試
+        # 解析器測試跑在存下來的 HTML 上，能在真正擷取前先抓出程式錯誤
+        run: pytest -q
+
+      - name: 擷取
+        id: scrape
+        # 全部來源都失敗時 CLI 會回傳 1；先不要讓工作中斷，
+        # 這樣仍會 commit 既有資料，最後再把工作標成失敗。
+        continue-on-error: true
+        run: |
+          if [ -n "${{ inputs.sources }}" ]; then
+            python -m cruise_deals --sources "${{ inputs.sources }}"
+          else
+            python -m cruise_deals
+          fi
+
+      - name: 上傳除錯產物
+        if: always() && hashFiles('debug/**') != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: debug-${{ github.run_id }}
+          path: debug/
+          retention-days: 7
+
+      - name: Commit 結果
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data docs
+          if git diff --staged --quiet; then
+            echo "資料沒有變動，略過 commit"
+          else
+            COUNT=$(python -c "import json;print(json.load(open('data/deals.json'))['count'])")
+            git commit -m "資料更新：${COUNT} 筆航次 ($(date -u +%Y-%m-%d))"
+            git push
+          fi
+
+      - name: 全部來源皆失敗時讓工作失敗
+        if: steps.scrape.outcome == 'failure'
+        run: |
+          echo "::error::所有來源都擷取失敗，請檢查上方日誌與除錯產物"
+          exit 1

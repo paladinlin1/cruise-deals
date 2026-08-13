@@ -1,0 +1,5 @@
+# 統一以 LF 存放，避免 Windows 開發 / Linux CI 之間的換行差異
+* text=auto eol=lf
+
+# 測試 fixture 是抓下來的真實回應，保持原樣不做任何轉換
+tests/fixtures/** -text

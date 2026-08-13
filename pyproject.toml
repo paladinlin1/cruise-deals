@@ -1,0 +1,36 @@
+[project]
+name = "cruise-deals"
+version = "0.1.0"
+description = "自動擷取郵輪 last minute deals（基隆／東京／橫濱出發）並整理成表格"
+requires-python = ">=3.11"
+dependencies = [
+  "httpx>=0.27",
+  "selectolax>=0.3.21",
+]
+
+[project.optional-dependencies]
+# 瀏覽器型 scraper 才需要；純解析測試不必安裝
+browser = [
+  "patchright>=1.49",
+]
+dev = [
+  "pytest>=8.0",
+]
+
+[project.scripts]
+cruise-deals = "cruise_deals.cli:main"
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+# 標記需要真實網路／瀏覽器的測試，預設不跑
+markers = [
+  "live: 需要真實網路連線的測試（pytest -m live 才會執行）",
+]
+addopts = "-m 'not live'"

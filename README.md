@@ -1,0 +1,138 @@
+# 郵輪 Last Minute Deals 自動擷取
+
+每天自動擷取**基隆、東京、橫濱**出發、**未來一個月內**的郵輪航次，
+整理成統一表格並產生可瀏覽的網頁。
+
+| 輸出 | 位置 | 用途 |
+|---|---|---|
+| 表格網頁 | `docs/index.html`（GitHub Pages） | 日常查看，可排序／篩選／搜尋 |
+| CSV | `data/deals.csv` | 用 Excel 開（UTF-8 BOM，不會亂碼） |
+| JSON | `data/deals.json` | 程式讀取，含各來源執行狀態 |
+| 每日快照 | `data/history/YYYY-MM-DD.json` | 比對價格變化 |
+
+資料每天 commit 回 repo，所以用 `git log -p data/deals.csv` 就能看出
+哪些航次是新開的、哪一班降價了——不需要額外的資料庫。
+
+## 資料來源現況
+
+| 來源 | 狀態 | 說明 |
+|---|---|---|
+| **icruise.com** | ✅ 正常 | Server-rendered HTML，`httpx` + `selectolax` 直接解析 |
+| **expediacruises.com** | ✅ 正常 | Odysseus Swift API，用瀏覽器取得授權標頭後呼叫 JSON API |
+| **cruisedirect.com** | ❌ 被封鎖 | Cloudflare 全面阻擋自動化存取，詳見下方 |
+
+### cruisedirect 為什麼抓不到
+
+實測結果（2026-08-13）：
+
+- `httpx` 直接請求 → **403**，回應標頭 `Cf-Mitigated: challenge`
+- 換成瀏覽器 User-Agent → 403
+- patchright（undetected Chromium）**無頭**模式 → 挑戰頁 30 秒未解除
+- patchright **有頭**模式 → 同樣未解除
+- 連 `/robots.txt` 都回 **403**
+
+連 robots.txt 都擋，代表站方是刻意且全面地拒絕自動化存取。
+要通過就得主動破解其機器人防護，本專案不做這件事。
+
+此來源仍保留在每日流程中（逾時設為 25 秒，快速失敗），
+一旦對方放寬，程式會自動偵測到並把頁面存進 `debug/` 供補上解析器。
+它失敗**不會**影響其他兩個來源。
+
+若想省下這 25 秒，把 workflow 的擷取步驟改成：
+
+```bash
+python -m cruise_deals --sources icruise,expedia
+```
+
+## 這個系統怎麼避免「安靜地壞掉」
+
+爬蟲最危險的失效不是崩潰，而是**安靜地回傳空清單**，讓你以為今天真的沒有 deal。
+因此有三道防線：
+
+1. **解析器健全性檢查** — icruise 頁面若宣稱有 N 筆結果卻解析出 0 筆，直接拋錯，
+   而不是回傳空清單。
+2. **失敗不覆蓋好資料** — 某來源擷取失敗時，沿用它上一次的資料並標記 `stale_since`，
+   網頁上會明確顯示「這是 X 日抓的資料」。
+3. **狀態全都攤在明處** — `deals.json` 的 `run_report` 與網頁頂端的狀態橫幅
+   都會列出每個來源的成功／失敗與原因。
+
+## 本機使用
+
+```bash
+python -m venv .venv
+.venv\Scripts\activate            # Windows
+pip install -e ".[dev,browser]"
+patchright install chromium       # 瀏覽器型來源才需要
+
+python -m cruise_deals                              # 全部來源
+python -m cruise_deals --sources icruise            # 只跑輕量來源（最快）
+python -m cruise_deals --dry-run                    # 不寫檔，只印表格
+python -m cruise_deals --sources expedia --headed   # 有頭模式觀察瀏覽器
+python -m cruise_deals --lookahead-days 60          # 改成看兩個月
+```
+
+離開碼：**所有**來源都失敗時為 1，否則為 0（部分失敗仍算成功）。
+
+## 測試
+
+```bash
+pytest -q          # 184 個測試，約 2 秒
+```
+
+測試全部跑在存下來的**真實**回應上（`tests/fixtures/`），不需要網路。
+瀏覽器測試（`test_page_browser.py`）在真實 Chromium 裡驗證排序／篩選／搜尋／手機版面，
+沒安裝 patchright 時會自動跳過。
+
+## 部署到 GitHub Actions
+
+1. 把這個目錄推到一個 GitHub repo
+2. **Settings → Pages** → Source 選 `main` 分支的 `/docs` 目錄
+3. **Settings → Actions → General** → Workflow permissions 選 **Read and write**
+4. 到 Actions 頁籤手動觸發一次 `擷取郵輪 Last Minute Deals` 確認正常
+
+排程為每天 UTC 21:00（台北 05:00）。
+
+> ⚠️ GitHub 會在 repo 連續 60 天無提交活動時停用排程 workflow 並寄信通知。
+> 本專案每天 commit 資料，正常情況不會觸發。
+
+## 專案結構
+
+```
+src/cruise_deals/
+├── config.py            # 目標港口、日期窗口、各站網址
+├── models.py            # Deal 資料模型、去重鍵、排序
+├── normalize.py         # 港口比對、日期／價格／天數解析（純函式）
+├── scrapers/
+│   ├── base.py          # ScrapeResult、ParseError／BlockedError、優雅降級
+│   ├── icruise.py       # httpx + selectolax
+│   ├── expedia.py       # patchright 取得授權標頭 + JSON API
+│   └── cruisedirect.py  # 封鎖偵測（解析器待對方開放後補上）
+├── outputs/
+│   ├── tabular.py       # 合併邏輯、CSV／JSON、歷史快照
+│   └── page.py          # 自足的 GitHub Pages 表格網頁
+└── cli.py
+```
+
+## 實作上踩過的坑（都已處理）
+
+這些是實際打過真實請求才發現的，記錄下來免得日後重踩：
+
+- **icruise 每頁固定 25 筆**，且 `PageNo` / `strPage` / `page` / `CurrentPage` /
+  `strResultsPerPage` 等分頁參數由 GET 傳入**全部無效**。
+  解法：把日期窗口切成 5 天一段，讓每段結果自然低於上限。
+- **icruise 的日期參數不能做 URL 編碼**。`08/13/2026` 被編成 `08%2F13%2F2026`
+  時會**間歇性**回 404。解法：自行組 query string 保留字面斜線。
+- **icruise 會間歇性回 404／逾時**，與參數無關。解法：三次遞增延遲重試。
+- **Expedia 那個網址不回 JSON**，只是 12KB 的 SPA 空殼。真資料在
+  `POST /nitroapi/v2/cruise`，需要 `uniquetid` 授權標頭（由頁面 JS 動態產生）。
+  解法：用瀏覽器載入頁面、攔下 SPA 自己的請求標頭再沿用。
+- **Expedia API 限制**（都是它自己回報的錯誤訊息）：`pageSize` 上限 50；
+  `pageStart` 是頁碼不是筆數位移（`from = (pageStart-1) * pageSize`）；
+  `sortColumn` 只接受 `departureDateTime`；`departureDate` 區間篩選無效，
+  日期只能在本地過濾。
+- **Expedia 的價格陣列混著稅金與港務費**（用 `code` 而非 `name` 標示，
+  金額只有幾塊錢）。只認 Inside／Outside／Balcony／Suite 四種房型名稱，
+  否則會把 4.35 元的稅金算成「最低價」。
+- **網頁排序的 `dataset.sort || textContent` 是陷阱**：無報價時 `data-sort` 是
+  空字串（falsy），會被誤退回讀「洽詢報價」文字，`parseFloat` 得到 NaN，
+  導致「空值排最後」完全失效。這個 bug 是瀏覽器測試抓到的。

@@ -1,0 +1,205 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>郵輪 Last Minute Deals</title>
+<style>
+:root {
+  color-scheme: light dark;
+  --bg: #f6f7f9;
+  --surface: #ffffff;
+  --border: #dfe3e8;
+  --text: #1b1f24;
+  --muted: #61697a;
+  --accent: #0b6bcb;
+  --ok: #1a7f4b;
+  --warn: #9a5b00;
+  --warn-bg: #fff6e5;
+  --stale: #8a6d00;
+  --shadow: 0 1px 3px rgba(16, 24, 40, .08);
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #14171c;
+    --surface: #1c2027;
+    --border: #2e343d;
+    --text: #e6e9ee;
+    --muted: #9aa4b2;
+    --accent: #6cb2ff;
+    --ok: #58d08b;
+    --warn: #ffc46b;
+    --warn-bg: #33280f;
+    --stale: #ffc46b;
+    --shadow: none;
+  }
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  padding: 1.5rem 1rem 4rem;
+  background: var(--bg);
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans TC",
+    "Microsoft JhengHei", Roboto, sans-serif;
+  line-height: 1.5;
+}
+.wrap { max-width: 1200px; margin: 0 auto; }
+h1 { font-size: 1.5rem; margin: 0 0 .25rem; }
+.updated { color: var(--muted); font-size: .875rem; margin: 0 0 1rem; }
+.stats { display: flex; flex-wrap: wrap; gap: .75rem; margin-bottom: 1rem; }
+.stat {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: .5rem; padding: .5rem .875rem; box-shadow: var(--shadow);
+}
+.stat b { display: block; font-size: 1.25rem; }
+.stat span { color: var(--muted); font-size: .75rem; }
+.sources { display: flex; flex-wrap: wrap; gap: .5rem; margin-bottom: 1rem; }
+.src {
+  font-size: .8125rem; padding: .3rem .625rem; border-radius: 999px;
+  border: 1px solid var(--border); background: var(--surface);
+}
+.src.ok { color: var(--ok); }
+.src.bad { color: var(--warn); background: var(--warn-bg); border-color: currentColor; }
+.controls { display: flex; flex-wrap: wrap; gap: .5rem; margin-bottom: .875rem; }
+.controls input, .controls select {
+  padding: .45rem .6rem; border: 1px solid var(--border); border-radius: .375rem;
+  background: var(--surface); color: inherit; font: inherit;
+}
+.controls input { flex: 1 1 14rem; }
+.tablewrap {
+  overflow-x: auto; background: var(--surface);
+  border: 1px solid var(--border); border-radius: .5rem; box-shadow: var(--shadow);
+}
+table { border-collapse: collapse; width: 100%; font-size: .875rem; }
+th, td { padding: .625rem .75rem; text-align: left; white-space: nowrap; }
+th {
+  background: var(--surface); border-bottom: 2px solid var(--border);
+  cursor: pointer; user-select: none; position: sticky; top: 0;
+}
+th:hover { color: var(--accent); }
+th .arrow { opacity: .35; font-size: .7em; }
+th.sorted .arrow { opacity: 1; color: var(--accent); }
+tbody td { border-bottom: 1px solid var(--border); }
+tbody tr:hover td { background: color-mix(in srgb, var(--accent) 7%, transparent); }
+.route { white-space: normal; min-width: 13rem; }
+.price { font-variant-numeric: tabular-nums; font-weight: 600; }
+.noprice { color: var(--muted); font-weight: 400; }
+.badge {
+  display: inline-block; font-size: .6875rem; padding: .1rem .4rem;
+  border-radius: .25rem; border: 1px solid currentColor; color: var(--stale);
+  margin-left: .375rem;
+}
+a { color: var(--accent); }
+.empty { padding: 2.5rem 1rem; text-align: center; color: var(--muted); }
+.hint { color: var(--muted); font-size: .8125rem; margin-top: .75rem; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>郵輪 Last Minute Deals</h1>
+  <p class="updated">最後更新：2026-08-13 11:40（台北時間）・出發港：基隆／東京／橫濱・出發日期一個月內</p>
+
+  <div class="stats"><div class="stat"><b>13</b><span>總航次</span></div><div class="stat"><b>$379.25</b><span>最低價</span></div><div class="stat"><b>3</b><span>出發港</span></div></div>
+  <div class="sources"><span class="src ok">✓ icruise：13 筆</span><span class="src ok">✓ expedia：3 筆</span><span class="src bad">✕ cruisedirect：擷取失敗 — BlockedError: 被 Cloudflare 機器人防護擋下（挑戰頁未解除）。此站目前無法自動擷取，其他來源不受影響。（顯示為前次資料）</span></div>
+
+  <div class="controls">
+    <input id="q" type="search" placeholder="搜尋郵輪、船公司、停靠港…" aria-label="搜尋">
+    <select id="port" aria-label="出發港口"><option value="">全部出發港</option><option value="Keelung">Keelung</option><option value="Tokyo">Tokyo</option><option value="Yokohama">Yokohama</option></select>
+    <select id="line" aria-label="船公司"><option value="">全部船公司</option><option value="Celebrity Cruises">Celebrity Cruises</option><option value="Costa Cruises">Costa Cruises</option><option value="Princess Cruises">Princess Cruises</option></select>
+  </div>
+
+  <div class="tablewrap">
+    <table id="deals">
+      <thead><tr><th>出發日期 <span class="arrow">↕</span></th><th>出發港口 <span class="arrow">↕</span></th><th>目的港口 <span class="arrow">↕</span></th><th>郵輪名 <span class="arrow">↕</span></th><th>船公司 <span class="arrow">↕</span></th><th data-numeric>航行天數 <span class="arrow">↕</span></th><th data-numeric>最低價格 <span class="arrow">↕</span></th><th>來源 <span class="arrow">↕</span></th><th data-nosort>連結</th></tr></thead>
+      <tbody><tr data-port="Keelung" data-line="Costa Cruises" data-search="costa serena costa cruises keelung keelung"><td data-sort="2026-08-16">2026-08-16</td><td>Keelung</td><td class="route">Keelung</td><td>Costa Serena</td><td>Costa Cruises</td><td data-sort="3">3</td><td class="price" data-sort="379.25" title="各房型最低價（每人）">379.25<span class="badge" title="其他平台報價">icruise 洽詢報價</span></td><td>expedia</td><td><a href="https://bookus.expediacruises.com/swift/cruise/package/1652946?siid=1095905&amp;lang=1" target="_blank" rel="noopener">詳情</a></td></tr><tr data-port="Yokohama" data-line="Princess Cruises" data-search="diamond princess princess cruises yokohama yokohama, japan yokohama kumano japan wakayama kochi busan (pusan) nagasaki kagoshima shimizu yokohama"><td data-sort="2026-08-16">2026-08-16</td><td>Yokohama</td><td class="route">Yokohama, Japan</td><td>Diamond Princess</td><td>Princess Cruises</td><td data-sort="10">10</td><td class="price" data-sort="2812" title="from per person (double occupancy) Includes taxes &amp; fees">2,812</td><td>icruise</td><td><a href="https://www.icruise.com/itineraries/10-night-japan-explorer-with-kumano-fireworks-cruise_diamond-princess_8-16-2026.html" target="_blank" rel="noopener">詳情</a></td></tr><tr data-port="Tokyo" data-line="Celebrity Cruises" data-search="celebrity millennium celebrity cruises tokyo tokyo, japan tokyo osaka kochi hiroshima busan (pusan) nagasaki kagoshima shimizu tokyo"><td data-sort="2026-08-18">2026-08-18</td><td>Tokyo</td><td class="route">Tokyo, Japan</td><td>Celebrity Millennium</td><td>Celebrity Cruises</td><td data-sort="12">12</td><td class="price" data-sort="3001" title="from per person (double occupancy) Includes taxes &amp; fees">3,001</td><td>icruise</td><td><a href="https://www.icruise.com/itineraries/12-night-best-of-japan-cruise_celebrity-millennium_8-18-2026.html" target="_blank" rel="noopener">詳情</a></td></tr><tr data-port="Keelung" data-line="Costa Cruises" data-search="costa serena costa cruises keelung keelung"><td data-sort="2026-08-19">2026-08-19</td><td>Keelung</td><td class="route">Keelung</td><td>Costa Serena</td><td>Costa Cruises</td><td data-sort="4">4</td><td class="price" data-sort="629.25" title="各房型最低價（每人）">629.25<span class="badge" title="其他平台報價">icruise 洽詢報價</span></td><td>expedia</td><td><a href="https://bookus.expediacruises.com/swift/cruise/package/1652947?siid=1095905&amp;lang=1" target="_blank" rel="noopener">詳情</a></td></tr><tr data-port="Keelung" data-line="Costa Cruises" data-search="costa serena costa cruises keelung keelung"><td data-sort="2026-08-23">2026-08-23</td><td>Keelung</td><td class="route">Keelung</td><td>Costa Serena</td><td>Costa Cruises</td><td data-sort="3">3</td><td class="price" data-sort="429.25" title="各房型最低價（每人）">429.25<span class="badge" title="其他平台報價">icruise 洽詢報價</span></td><td>expedia</td><td><a href="https://bookus.expediacruises.com/swift/cruise/package/1652948?siid=1095905&amp;lang=1" target="_blank" rel="noopener">詳情</a></td></tr><tr data-port="Yokohama" data-line="Princess Cruises" data-search="diamond princess princess cruises yokohama yokohama, japan yokohama toba osaka kochi hiroshima cruising the kanmon strait busan (pusan) nagasaki..."><td data-sort="2026-08-26">2026-08-26</td><td>Yokohama</td><td class="route">Yokohama, Japan</td><td>Diamond Princess</td><td>Princess Cruises</td><td data-sort="10">10</td><td class="price" data-sort="1962" title="from per person (double occupancy) Includes taxes &amp; fees">1,962</td><td>icruise</td><td><a href="https://www.icruise.com/itineraries/10-night-japan-explorer-cruise_diamond-princess_8-26-2026.html" target="_blank" rel="noopener">詳情</a></td></tr><tr data-port="Yokohama" data-line="Princess Cruises" data-search="diamond princess princess cruises yokohama yokohama, japan yokohama toba osaka kochi hiroshima cruising the kanmon strait busan (pusan) nagasaki..."><td data-sort="2026-08-26">2026-08-26</td><td>Yokohama</td><td class="route">Yokohama, Japan</td><td>Diamond Princess</td><td>Princess Cruises</td><td data-sort="20">20</td><td class="price noprice" data-sort="" title="">洽詢報價</td><td>icruise</td><td><a href="https://www.icruise.com/itineraries/20-night-grand-japan-cruise_diamond-princess_8-26-2026.html" target="_blank" rel="noopener">詳情</a></td></tr><tr data-port="Keelung" data-line="Costa Cruises" data-search="costa serena costa cruises keelung busan (pusan), south korea keelung (taipei) busan (pusan)"><td data-sort="2026-08-26">2026-08-26</td><td>Keelung</td><td class="route">Busan (Pusan), South Korea</td><td>Costa Serena</td><td>Costa Cruises</td><td data-sort="2">2</td><td class="price noprice" data-sort="" title="">洽詢報價</td><td>icruise</td><td><a href="https://www.icruise.com/itineraries/2-night-keelung-to-busan-cruise_costa-serena_8-26-2026.html" target="_blank" rel="noopener">詳情</a></td></tr><tr data-port="Tokyo" data-line="Celebrity Cruises" data-search="celebrity millennium celebrity cruises tokyo tokyo, japan tokyo osaka kochi busan (pusan) nagasaki kagoshima shimizu tokyo"><td data-sort="2026-08-30">2026-08-30</td><td>Tokyo</td><td class="route">Tokyo, Japan</td><td>Celebrity Millennium</td><td>Celebrity Cruises</td><td data-sort="12">12</td><td class="price" data-sort="3371" title="from per person (double occupancy) Includes taxes &amp; fees">3,371</td><td>icruise</td><td><a href="https://www.icruise.com/itineraries/12-night-best-of-japan-cruise_celebrity-millennium_8-30-2026.html" target="_blank" rel="noopener">詳情</a></td></tr><tr data-port="Keelung" data-line="Costa Cruises" data-search="costa serena costa cruises keelung busan (pusan), south korea keelung (taipei) busan (pusan)"><td data-sort="2026-08-31">2026-08-31</td><td>Keelung</td><td class="route">Busan (Pusan), South Korea</td><td>Costa Serena</td><td>Costa Cruises</td><td data-sort="2">2</td><td class="price noprice" data-sort="" title="">洽詢報價</td><td>icruise</td><td><a href="https://www.icruise.com/itineraries/2-night-keelung-to-busan-cruise_costa-serena_8-31-2026.html" target="_blank" rel="noopener">詳情</a></td></tr><tr data-port="Yokohama" data-line="Princess Cruises" data-search="diamond princess princess cruises yokohama yokohama, japan yokohama hakodate niigata busan (pusan) nagasaki kagoshima kochi shimizu yokohama"><td data-sort="2026-09-05">2026-09-05</td><td>Yokohama</td><td class="route">Yokohama, Japan</td><td>Diamond Princess</td><td>Princess Cruises</td><td data-sort="10">10</td><td class="price" data-sort="1742" title="from per person (double occupancy) Includes taxes &amp; fees">1,742</td><td>icruise</td><td><a href="https://www.icruise.com/itineraries/10-night-circle-japan-cruise_diamond-princess_9-5-2026.html" target="_blank" rel="noopener">詳情</a></td></tr><tr data-port="Yokohama" data-line="Princess Cruises" data-search="diamond princess princess cruises yokohama yokohama, japan yokohama hakodate niigata busan (pusan) nagasaki kagoshima kochi shimizu yokohama nagasaki..."><td data-sort="2026-09-05">2026-09-05</td><td>Yokohama</td><td class="route">Yokohama, Japan</td><td>Diamond Princess</td><td>Princess Cruises</td><td data-sort="17">17</td><td class="price noprice" data-sort="" title="">洽詢報價</td><td>icruise</td><td><a href="https://www.icruise.com/itineraries/17-night-grand-circle-japan-cruise_diamond-princess_9-5-2026.html" target="_blank" rel="noopener">詳情</a></td></tr><tr data-port="Tokyo" data-line="Celebrity Cruises" data-search="celebrity millennium celebrity cruises tokyo tokyo, japan tokyo osaka kochi busan (pusan) nagasaki kagoshima shimizu tokyo"><td data-sort="2026-09-11">2026-09-11</td><td>Tokyo</td><td class="route">Tokyo, Japan</td><td>Celebrity Millennium</td><td>Celebrity Cruises</td><td data-sort="12">12</td><td class="price" data-sort="1991" title="Retail Price $2,381 Save $390 from per person (double occupancy) Includes taxes &amp; fees">1,991</td><td>icruise</td><td><a href="https://www.icruise.com/itineraries/12-night-best-of-japan-cruise_celebrity-millennium_9-11-2026.html" target="_blank" rel="noopener">詳情</a></td></tr></tbody>
+    </table>
+    <div class="empty" id="empty" hidden>沒有符合篩選條件的航次。</div>
+  </div>
+
+  <p class="hint">顯示 <span id="shown">13</span> 筆・點欄位標題可排序・
+  價格為每人最低艙房價（多為雙人房，實際條件以各平台頁面為準）。</p>
+</div>
+<script>
+(function () {
+  var table = document.getElementById('deals');
+  if (!table) return;
+  var rows = Array.prototype.slice.call(table.tBodies[0].rows);
+  var search = document.getElementById('q');
+  var portSel = document.getElementById('port');
+  var lineSel = document.getElementById('line');
+  var empty = document.getElementById('empty');
+  var count = document.getElementById('shown');
+
+  function applyFilters() {
+    var q = search.value.trim().toLowerCase();
+    var port = portSel.value;
+    var line = lineSel.value;
+    var visible = 0;
+    rows.forEach(function (row) {
+      var show =
+        (!port || row.dataset.port === port) &&
+        (!line || row.dataset.line === line) &&
+        (!q || row.dataset.search.indexOf(q) !== -1);
+      row.hidden = !show;
+      if (show) visible++;
+    });
+    count.textContent = visible;
+    empty.hidden = visible !== 0;
+  }
+
+  function readSortValue(cell) {
+    return cell.dataset.sort !== undefined ? cell.dataset.sort : cell.textContent.trim();
+  }
+
+  function toNumber(value) {
+    var n = parseFloat(value);
+    return isNaN(n) ? Infinity : n;  // 無法解析者一律視為最大，排到最後
+  }
+
+  function sortBy(index, numeric, ascending) {
+    var sorted = rows.slice().sort(function (a, b) {
+      // 注意：不能寫成 `dataset.sort || textContent`。
+      // 無報價時 data-sort 是空字串（falsy），會被誤退回讀取「洽詢報價」文字，
+      // parseFloat 得到 NaN，導致「空值排最後」的判斷完全失效。
+      var x = readSortValue(a.cells[index]);
+      var y = readSortValue(b.cells[index]);
+      if (numeric) {
+        // 空值（洽詢報價）一律排最後，不論升冪降冪
+        var nx = toNumber(x);
+        var ny = toNumber(y);
+        if (nx === ny) return 0;
+        if (nx === Infinity) return 1;
+        if (ny === Infinity) return -1;
+        return ascending ? nx - ny : ny - nx;
+      }
+      return ascending ? x.localeCompare(y) : y.localeCompare(x);
+    });
+    var body = table.tBodies[0];
+    sorted.forEach(function (row) { body.appendChild(row); });
+    rows = sorted;
+  }
+
+  Array.prototype.forEach.call(table.tHead.rows[0].cells, function (th, index) {
+    if (th.dataset.nosort !== undefined) return;
+    th.addEventListener('click', function () {
+      var ascending = th.dataset.dir !== 'asc';
+      Array.prototype.forEach.call(table.tHead.rows[0].cells, function (other) {
+        other.classList.remove('sorted');
+        delete other.dataset.dir;
+      });
+      th.classList.add('sorted');
+      th.dataset.dir = ascending ? 'asc' : 'desc';
+      th.querySelector('.arrow').textContent = ascending ? '\u25b2' : '\u25bc';
+      sortBy(index, th.dataset.numeric !== undefined, ascending);
+    });
+  });
+
+  [search, portSel, lineSel].forEach(function (el) {
+    el.addEventListener('input', applyFilters);
+  });
+  applyFilters();
+})();
+</script>
+</body>
+</html>
