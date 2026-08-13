@@ -1,28 +1,28 @@
 {
-  "generated_at": "2026-08-13T05:45:35.337080+00:00",
+  "generated_at": "2026-08-13T05:49:18.014979+00:00",
   "run_report": {
-    "generated_at": "2026-08-13T05:45:35.337080+00:00",
+    "generated_at": "2026-08-13T05:49:18.014979+00:00",
     "sources": [
       {
         "source": "icruise",
         "ok": true,
         "count": 13,
-        "duration_s": 28.22,
+        "duration_s": 25.28,
         "error": null
       },
       {
         "source": "expedia",
         "ok": true,
         "count": 3,
-        "duration_s": 12.3,
+        "duration_s": 8.93,
         "error": null
       },
       {
         "source": "cruisedirect",
-        "ok": true,
-        "count": 9,
-        "duration_s": 41.63,
-        "error": null
+        "ok": false,
+        "count": 0,
+        "duration_s": 39.68,
+        "error": "BlockedError: Keelung: 挑戰未解除；Tokyo: 挑戰未解除；Yokohama: 挑戰未解除"
       }
     ]
   },
@@ -48,7 +48,7 @@
       "price_note": "各房型最低價（每人，含稅費）",
       "detail_url": "https://book.cruisedirect.com/swift/cruise/package/1652946?siid=294662",
       "scraped_at": "2026-08-13T05:45:11.858542+00:00",
-      "stale_since": null,
+      "stale_since": "2026-08-13",
       "other_sources": {
         "icruise": null,
         "expedia": "379.25"
@@ -78,11 +78,9 @@
       "currency": "USD",
       "price_note": "from per person (double occupancy) Includes taxes & fees",
       "detail_url": "https://www.icruise.com/itineraries/10-night-japan-explorer-with-kumano-fireworks-cruise_diamond-princess_8-16-2026.html",
-      "scraped_at": "2026-08-13T05:44:17.415822+00:00",
+      "scraped_at": "2026-08-13T05:48:06.812741+00:00",
       "stale_since": null,
-      "other_sources": {
-        "cruisedirect": null
-      }
+      "other_sources": {}
     },
     {
       "source": "cruisedirect",
@@ -110,7 +108,7 @@
       "price_note": "各房型最低價（每人，含稅費）",
       "detail_url": "https://book.cruisedirect.com/swift/cruise/package/1543045?siid=294662",
       "scraped_at": "2026-08-13T05:45:22.317832+00:00",
-      "stale_since": null,
+      "stale_since": "2026-08-13",
       "other_sources": {
         "icruise": "3151"
       }
@@ -136,7 +134,7 @@
       "price_note": "各房型最低價（每人，含稅費）",
       "detail_url": "https://book.cruisedirect.com/swift/cruise/package/1652947?siid=294662",
       "scraped_at": "2026-08-13T05:45:11.858542+00:00",
-      "stale_since": null,
+      "stale_since": "2026-08-13",
       "other_sources": {
         "icruise": null,
         "expedia": "629.25"
@@ -162,7 +160,7 @@
       "price_note": "各房型最低價（每人，含稅費）",
       "detail_url": "https://book.cruisedirect.com/swift/cruise/package/1652948?siid=294662",
       "scraped_at": "2026-08-13T05:45:11.858542+00:00",
-      "stale_since": null,
+      "stale_since": "2026-08-13",
       "other_sources": {
         "icruise": null,
         "expedia": "429.25"
@@ -191,11 +189,9 @@
       "currency": "USD",
       "price_note": "from per person (double occupancy) Includes taxes & fees",
       "detail_url": "https://www.icruise.com/itineraries/10-night-japan-explorer-cruise_diamond-princess_8-26-2026.html",
-      "scraped_at": "2026-08-13T05:44:25.390028+00:00",
+      "scraped_at": "2026-08-13T05:48:14.671085+00:00",
       "stale_since": null,
-      "other_sources": {
-        "cruisedirect": "1962"
-      }
+      "other_sources": {}
     },
     {
       "source": "icruise",
@@ -220,7 +216,7 @@
       "currency": "USD",
       "price_note": "",
       "detail_url": "https://www.icruise.com/itineraries/20-night-grand-japan-cruise_diamond-princess_8-26-2026.html",
-      "scraped_at": "2026-08-13T05:44:25.390028+00:00",
+      "scraped_at": "2026-08-13T05:48:14.671085+00:00",
       "stale_since": null,
       "other_sources": {}
     },
@@ -241,7 +237,7 @@
       "currency": "USD",
       "price_note": "",
       "detail_url": "https://www.icruise.com/itineraries/2-night-keelung-to-busan-cruise_costa-serena_8-26-2026.html",
-      "scraped_at": "2026-08-13T05:44:25.390028+00:00",
+      "scraped_at": "2026-08-13T05:48:14.671085+00:00",
       "stale_since": null,
       "other_sources": {}
     },
@@ -268,11 +264,9 @@
       "currency": "USD",
       "price_note": "from per person (double occupancy) Includes taxes & fees",
       "detail_url": "https://www.icruise.com/itineraries/12-night-best-of-japan-cruise_celebrity-millennium_8-30-2026.html",
-      "scraped_at": "2026-08-13T05:44:29.313288+00:00",
+      "scraped_at": "2026-08-13T05:48:18.371783+00:00",
       "stale_since": null,
-      "other_sources": {
-        "cruisedirect": "11343"
-      }
+      "other_sources": {}
     },
     {
       "source": "icruise",
@@ -291,7 +285,7 @@
       "currency": "USD",
       "price_note": "",
       "detail_url": "https://www.icruise.com/itineraries/2-night-keelung-to-busan-cruise_costa-serena_8-31-2026.html",
-      "scraped_at": "2026-08-13T05:44:29.313288+00:00",
+      "scraped_at": "2026-08-13T05:48:18.371783+00:00",
       "stale_since": null,
       "other_sources": {}
     },
@@ -319,11 +313,9 @@
       "currency": "USD",
       "price_note": "from per person (double occupancy) Includes taxes & fees",
       "detail_url": "https://www.icruise.com/itineraries/10-night-circle-japan-cruise_diamond-princess_9-5-2026.html",
-      "scraped_at": "2026-08-13T05:44:33.518945+00:00",
+      "scraped_at": "2026-08-13T05:48:21.984260+00:00",
       "stale_since": null,
-      "other_sources": {
-        "cruisedirect": "2417"
-      }
+      "other_sources": {}
     },
     {
       "source": "icruise",
@@ -350,7 +342,7 @@
       "currency": "USD",
       "price_note": "",
       "detail_url": "https://www.icruise.com/itineraries/17-night-grand-circle-japan-cruise_diamond-princess_9-5-2026.html",
-      "scraped_at": "2026-08-13T05:44:33.518945+00:00",
+      "scraped_at": "2026-08-13T05:48:21.984260+00:00",
       "stale_since": null,
       "other_sources": {}
     },
@@ -380,7 +372,7 @@
       "price_note": "各房型最低價（每人，含稅費）",
       "detail_url": "https://book.cruisedirect.com/swift/cruise/package/1543054?siid=294662",
       "scraped_at": "2026-08-13T05:45:22.317832+00:00",
-      "stale_since": null,
+      "stale_since": "2026-08-13",
       "other_sources": {
         "icruise": "2066"
       }
