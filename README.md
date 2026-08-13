@@ -40,6 +40,73 @@
 後者是策展子集合，其 facet 清單裡查不到基隆，會整個港口漏掉。
 日期改由我們自己用 Unix 時間戳篩，不依賴對方對「last minute」的定義（他們設 3 個月）。
 
+#### 資料中心 IP 的問題與解法
+
+同一份程式碼在不同網路環境下行為不同（實測）：
+
+| 環境 | Cloudflare 反應 |
+|---|---|
+| 家用住宅 IP | 自動放行，不出現任何互動 |
+| GitHub Actions（Azure 資料中心 IP） | 升級成「Verify you are human」勾選框，**程式點了也不通過** |
+
+這是 IP 信譽評分造成的，不是程式寫法問題。解法是讓流量從住宅 IP 出去：
+在 GitHub Actions 裡透過 SSH 連到家用路由器開一條 SOCKS5 通道。
+
+只有 cruisedirect 走這條通道（`CRUISEDIRECT_PROXY` 環境變數），
+icruise 與 expedia 照舊直連，不佔用家用頻寬。
+沒設定 `ROUTER_*` secrets 時整個步驟會跳過，cruisedirect 直連並如常降級。
+
+##### 路由器端設定（Entware）
+
+```sh
+# 1. 安裝 OpenSSH server（比內建 Dropbear 好，支援完整的金鑰限制語法）
+opkg install openssh-server
+
+# 2. 建立專用使用者（不要用 root 開通道）
+adduser -D tunnel
+
+# 3. 停用密碼登入，只允許金鑰
+#    編輯 /opt/etc/ssh/sshd_config：
+#      PasswordAuthentication no
+#      PermitRootLogin no
+#      Port 22022            # 換掉預設埠可大幅減少掃描
+#      AllowUsers tunnel
+```
+
+在**你自己的電腦**上產生專用金鑰（私鑰不要離開你的機器以外的地方，
+只有公鑰放路由器、私鑰放 GitHub Secrets）：
+
+```powershell
+ssh-keygen -t ed25519 -f $env:USERPROFILE\.ssh\cruise_tunnel -C "cruise-deals-ci" -N '""'
+```
+
+把**公鑰**加到路由器的 `/home/tunnel/.ssh/authorized_keys`，並限制這把金鑰只能開通道：
+
+```
+restrict,port-forwarding ssh-ed25519 AAAA...你的公鑰... cruise-deals-ci
+```
+
+`restrict` 會關掉 shell、pty、agent forwarding、X11 forwarding，
+只留下 `port-forwarding`——這把金鑰即使外洩也開不了 shell。
+
+最後在路由器上做 DDNS 與埠轉發（你已有 DDNS），確認從外部連得進來。
+
+##### GitHub Secrets
+
+| Secret | 內容 | 必要 |
+|---|---|---|
+| `ROUTER_HOST` | 你的 DDNS 網域 | ✅ |
+| `ROUTER_SSH_USER` | `tunnel` | ✅ |
+| `ROUTER_SSH_KEY` | **私鑰**全文（`cruise_tunnel` 檔案內容） | ✅ |
+| `ROUTER_SSH_PORT` | 例如 `22022`（未設則用 22） | 選用 |
+| `ROUTER_KNOWN_HOSTS` | `ssh-keyscan -p 22022 你的DDNS` 的輸出 | 建議 |
+
+沒有 `ROUTER_KNOWN_HOSTS` 時會退回 TOFU 模式並發出警告——
+補上它才能防中間人攻擊。
+
+> ⚠️ 把 SSH 開到公網有風險。務必：關閉密碼登入、換非預設埠、
+> 用專用非 root 帳號、金鑰加 `restrict,port-forwarding` 限制。
+
 ## 這個系統怎麼避免「安靜地壞掉」
 
 爬蟲最危險的失效不是崩潰，而是**安靜地回傳空清單**，讓你以為今天真的沒有 deal。

@@ -24,6 +24,7 @@
 from __future__ import annotations
 
 import logging
+import os
 import re
 from datetime import date, datetime, time, timedelta, timezone
 from decimal import Decimal
@@ -251,6 +252,33 @@ def parse_search_page(
   return deals
 
 
+# "host:port" 或 "scheme://host:port"（host 可為網域或 IP）
+_PROXY_RE = re.compile(
+  r"^(?:(?P<scheme>socks5h|socks5|socks4|https?)://)?"
+  r"(?P<host>[\w.\-]+):(?P<port>\d{1,5})$"
+)
+
+
+def proxy_setting() -> str | None:
+  """從 CRUISEDIRECT_PROXY 環境變數讀取代理設定。
+
+  GitHub Actions 的資料中心 IP 會被 Cloudflare 升級成人工勾選框（實測點了也不過），
+  但家用住宅 IP 可以自動放行。把流量導過家用路由器的 SSH SOCKS5 通道即可。
+
+  未設定或格式不對時回 None（直連），不讓瀏覽器因設定錯誤而啟動失敗。
+  """
+  raw = os.environ.get("CRUISEDIRECT_PROXY", "").strip()
+  if not raw:
+    return None
+  match = _PROXY_RE.match(raw)
+  if not match:
+    log.warning("CRUISEDIRECT_PROXY 格式無法辨識（%r），改用直連", raw)
+    return None
+  # 預設 socks5h：讓 DNS 也走通道解析，避免從資料中心洩漏查詢來源
+  scheme = match.group("scheme") or "socks5h"
+  return f"{scheme}://{match.group('host')}:{match.group('port')}"
+
+
 def _save_debug(sb, city_name: str, html: str) -> None:
   """把被擋的現場存下來，CI 上會當成 artifact 上傳供診斷。"""
   try:
@@ -288,7 +316,11 @@ def scrape(
 
   use_xvfb = sys.platform.startswith("linux")
 
-  with SB(uc=True, xvfb=use_xvfb, locale="en") as sb:
+  proxy = proxy_setting()
+  if proxy:
+    log.info("cruisedirect 透過代理連線：%s", proxy)
+
+  with SB(uc=True, xvfb=use_xvfb, locale="en", proxy=proxy) as sb:
     for city_name, city_id in DEPARTURE_CITY_IDS.items():
       url = build_search_url(city_id, start, end)
       try:

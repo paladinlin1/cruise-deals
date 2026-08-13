@@ -277,6 +277,37 @@ class TestBuildSearchUrl:
     assert "last-minute-cruises" not in url
 
 
+class TestProxySetting:
+  """CI 的資料中心 IP 會被 Cloudflare 升級成人工勾選框。
+  透過家用路由器的 SSH SOCKS5 通道，讓流量從住宅 IP 出去即可。"""
+
+  def test_none_when_env_not_set(self, monkeypatch):
+    monkeypatch.delenv("CRUISEDIRECT_PROXY", raising=False)
+    assert cruisedirect.proxy_setting() is None
+
+  def test_none_when_env_is_blank(self, monkeypatch):
+    monkeypatch.setenv("CRUISEDIRECT_PROXY", "   ")
+    assert cruisedirect.proxy_setting() is None
+
+  def test_passes_through_explicit_scheme(self, monkeypatch):
+    monkeypatch.setenv("CRUISEDIRECT_PROXY", "socks5h://127.0.0.1:1080")
+    assert cruisedirect.proxy_setting() == "socks5h://127.0.0.1:1080"
+
+  def test_bare_host_port_defaults_to_socks5h(self, monkeypatch):
+    # socks5h 讓 DNS 也走通道解析，避免從資料中心洩漏查詢來源
+    monkeypatch.setenv("CRUISEDIRECT_PROXY", "127.0.0.1:1080")
+    assert cruisedirect.proxy_setting() == "socks5h://127.0.0.1:1080"
+
+  def test_strips_surrounding_whitespace(self, monkeypatch):
+    monkeypatch.setenv("CRUISEDIRECT_PROXY", "  socks5h://127.0.0.1:1080\n")
+    assert cruisedirect.proxy_setting() == "socks5h://127.0.0.1:1080"
+
+  def test_rejects_obviously_invalid_value(self, monkeypatch):
+    # 設錯值時寧可不用代理直連，也不要讓瀏覽器啟動失敗
+    monkeypatch.setenv("CRUISEDIRECT_PROXY", "not a proxy")
+    assert cruisedirect.proxy_setting() is None
+
+
 class TestFailureIsGraceful:
   """整體流程不能因為這一站掛掉而中斷。"""
 

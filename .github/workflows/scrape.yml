@@ -25,6 +25,12 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
 
+    # secrets 不能直接用在 step 的 if 條件，先搬到 env 才能判斷有沒有設定
+    env:
+      ROUTER_HOST: ${{ secrets.ROUTER_HOST }}
+      ROUTER_SSH_USER: ${{ secrets.ROUTER_SSH_USER }}
+      ROUTER_SSH_PORT: ${{ secrets.ROUTER_SSH_PORT }}
+
     steps:
       - uses: actions/checkout@v4
 
@@ -47,6 +53,43 @@ jobs:
       - name: 執行測試
         # 解析器測試跑在存下來的 HTML 上，能在真正擷取前先抓出程式錯誤
         run: pytest -q
+
+      - name: 建立 SSH SOCKS5 通道
+        # cruisedirect 的 Cloudflare 對資料中心 IP 會出人工勾選框（實測點了也不過），
+        # 但住宅 IP 會自動放行。把流量導過家用路由器即可。
+        # 沒設定 ROUTER_* secrets 時整步跳過，cruisedirect 就直連並如常降級。
+        id: tunnel
+        if: env.ROUTER_HOST != ''
+        continue-on-error: true
+        run: |
+          mkdir -p ~/.ssh && chmod 700 ~/.ssh
+          printf '%s\n' "${{ secrets.ROUTER_SSH_KEY }}" > ~/.ssh/id_tunnel
+          chmod 600 ~/.ssh/id_tunnel
+
+          if [ -n "${{ secrets.ROUTER_KNOWN_HOSTS }}" ]; then
+            printf '%s\n' "${{ secrets.ROUTER_KNOWN_HOSTS }}" > ~/.ssh/known_hosts
+            HOST_KEY_OPT="-o StrictHostKeyChecking=yes"
+          else
+            echo "::warning::未設定 ROUTER_KNOWN_HOSTS，改用 TOFU 模式（建議補上以防中間人攻擊）"
+            HOST_KEY_OPT="-o StrictHostKeyChecking=accept-new"
+          fi
+
+          ssh -f -N -D 1080 -i ~/.ssh/id_tunnel \
+              $HOST_KEY_OPT \
+              -o ExitOnForwardFailure=yes \
+              -o ServerAliveInterval=30 \
+              -o ConnectTimeout=20 \
+              -p "${ROUTER_SSH_PORT:-22}" \
+              "${ROUTER_SSH_USER}@${ROUTER_HOST}"
+
+          # 確認通道真的通了，並印出對外 IP（只印前兩段，不外洩完整住家 IP）
+          EXIT_IP=$(curl -s --max-time 20 --socks5-hostname 127.0.0.1:1080 https://api.ipify.org)
+          if [ -z "$EXIT_IP" ]; then
+            echo "::error::SOCKS5 通道建立了但無法連外"
+            exit 1
+          fi
+          echo "通道對外 IP: $(echo "$EXIT_IP" | cut -d. -f1-2).x.x"
+          echo "CRUISEDIRECT_PROXY=socks5h://127.0.0.1:1080" >> "$GITHUB_ENV"
 
       - name: 擷取
         id: scrape
