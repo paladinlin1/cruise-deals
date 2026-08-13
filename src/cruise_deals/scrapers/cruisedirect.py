@@ -300,11 +300,13 @@ def scrape(
         # 資料中心 IP（如 GitHub Actions）上，Cloudflare 常從自動放行
         # 升級成需要點擊的 Turnstile 核取方塊。試著點掉它再等一次。
         if is_blocked(html, title):
+          # CDP 模式下要用 sb.cdp.click_captcha()；
+          # sb.uc_gui_click_captcha() 是 UC 模式的 API，在這裡會 AttributeError。
           log.info("cruisedirect %s 仍在挑戰頁，嘗試點擊 Turnstile", city_name)
           try:
-            sb.uc_gui_click_captcha()
+            sb.cdp.click_captcha()
           except Exception as exc:  # noqa: BLE001 - 沒有可點的元素也算正常
-            log.debug("點擊 Turnstile 未成功：%s", exc)
+            log.info("點擊 Turnstile 未成功（%s: %s）", type(exc).__name__, exc)
           sb.sleep(wait_s)
           html = sb.get_page_source()
           title = sb.get_title()
