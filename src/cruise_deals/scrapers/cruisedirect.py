@@ -274,8 +274,12 @@ def proxy_setting() -> str | None:
   if not match:
     log.warning("CRUISEDIRECT_PROXY 格式無法辨識（%r），改用直連", raw)
     return None
-  # 預設 socks5h：讓 DNS 也走通道解析，避免從資料中心洩漏查詢來源
-  scheme = match.group("scheme") or "socks5h"
+
+  scheme = match.group("scheme") or "socks5"
+  # socks5h 是 curl 的寫法，Chrome 不認得，會**安靜地忽略整個代理設定**改走直連。
+  # Chrome 的 socks5 本來就會把網域交給代理端解析，語意相同。
+  if scheme == "socks5h":
+    scheme = "socks5"
   return f"{scheme}://{match.group('host')}:{match.group('port')}"
 
 

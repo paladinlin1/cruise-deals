@@ -289,18 +289,24 @@ class TestProxySetting:
     monkeypatch.setenv("CRUISEDIRECT_PROXY", "   ")
     assert cruisedirect.proxy_setting() is None
 
-  def test_passes_through_explicit_scheme(self, monkeypatch):
-    monkeypatch.setenv("CRUISEDIRECT_PROXY", "socks5h://127.0.0.1:1080")
-    assert cruisedirect.proxy_setting() == "socks5h://127.0.0.1:1080"
-
-  def test_bare_host_port_defaults_to_socks5h(self, monkeypatch):
-    # socks5h 讓 DNS 也走通道解析，避免從資料中心洩漏查詢來源
+  def test_bare_host_port_defaults_to_socks5(self, monkeypatch):
     monkeypatch.setenv("CRUISEDIRECT_PROXY", "127.0.0.1:1080")
-    assert cruisedirect.proxy_setting() == "socks5h://127.0.0.1:1080"
+    assert cruisedirect.proxy_setting() == "socks5://127.0.0.1:1080"
+
+  def test_socks5h_is_rewritten_to_socks5(self, monkeypatch):
+    """socks5h 是 curl 的寫法，Chrome 不認得會**安靜地忽略整個代理設定**
+    改走直連。實測就是這個原因讓通道看起來完全沒生效。
+    Chrome 的 socks5 本來就會遠端解析 DNS，語意相同。"""
+    monkeypatch.setenv("CRUISEDIRECT_PROXY", "socks5h://127.0.0.1:1080")
+    assert cruisedirect.proxy_setting() == "socks5://127.0.0.1:1080"
+
+  def test_http_scheme_preserved(self, monkeypatch):
+    monkeypatch.setenv("CRUISEDIRECT_PROXY", "http://10.0.0.1:3128")
+    assert cruisedirect.proxy_setting() == "http://10.0.0.1:3128"
 
   def test_strips_surrounding_whitespace(self, monkeypatch):
-    monkeypatch.setenv("CRUISEDIRECT_PROXY", "  socks5h://127.0.0.1:1080\n")
-    assert cruisedirect.proxy_setting() == "socks5h://127.0.0.1:1080"
+    monkeypatch.setenv("CRUISEDIRECT_PROXY", "  socks5://127.0.0.1:1080\n")
+    assert cruisedirect.proxy_setting() == "socks5://127.0.0.1:1080"
 
   def test_rejects_obviously_invalid_value(self, monkeypatch):
     # 設錯值時寧可不用代理直連，也不要讓瀏覽器啟動失敗

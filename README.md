@@ -56,56 +56,57 @@
 icruise 與 expedia 照舊直連，不佔用家用頻寬。
 沒設定 `ROUTER_*` secrets 時整個步驟會跳過，cruisedirect 直連並如常降級。
 
-##### 路由器端設定（Entware）
+##### 路由器端設定
 
-```sh
-# 1. 安裝 OpenSSH server（比內建 Dropbear 好，支援完整的金鑰限制語法）
-opkg install openssh-server
+已在真實環境驗證通過：Netgear R7000 + Entware（Linux 4.19 armv7l，SSH server 為 **dropbear**）。
 
-# 2. 建立專用使用者（不要用 root 開通道）
-adduser -D tunnel
-
-# 3. 停用密碼登入，只允許金鑰
-#    編輯 /opt/etc/ssh/sshd_config：
-#      PasswordAuthentication no
-#      PermitRootLogin no
-#      Port 22022            # 換掉預設埠可大幅減少掃描
-#      AllowUsers tunnel
-```
-
-在**你自己的電腦**上產生專用金鑰（私鑰不要離開你的機器以外的地方，
-只有公鑰放路由器、私鑰放 GitHub Secrets）：
+**建議為 CI 另外產生一把專用金鑰**，不要沿用你平常登入用的那把：
 
 ```powershell
 ssh-keygen -t ed25519 -f $env:USERPROFILE\.ssh\cruise_tunnel -C "cruise-deals-ci" -N '""'
 ```
 
-把**公鑰**加到路由器的 `/home/tunnel/.ssh/authorized_keys`，並限制這把金鑰只能開通道：
+把**公鑰**加到路由器的 `authorized_keys`（通常在 `/root/.ssh/` 或 `/opt/home/<user>/.ssh/`），
+並在該行前面加上限制選項：
 
 ```
-restrict,port-forwarding ssh-ed25519 AAAA...你的公鑰... cruise-deals-ci
+no-pty,no-agent-forwarding,no-X11-forwarding ssh-ed25519 AAAA...你的公鑰... cruise-deals-ci
 ```
 
-`restrict` 會關掉 shell、pty、agent forwarding、X11 forwarding，
-只留下 `port-forwarding`——這把金鑰即使外洩也開不了 shell。
+> dropbear 不支援 OpenSSH 的 `restrict` 關鍵字，上面這組是 dropbear 認得的等效寫法：
+> 禁止配置終端機、禁止 agent 與 X11 轉發，只留下建立通道所需的埠轉發能力。
+> 這把金鑰即使外洩，也開不了互動 shell。
 
-最後在路由器上做 DDNS 與埠轉發（你已有 DDNS），確認從外部連得進來。
+取得主機金鑰指紋（給下面的 `ROUTER_KNOWN_HOSTS` 用）：
+
+```powershell
+ssh-keyscan -p 2222 你的DDNS網域
+```
 
 ##### GitHub Secrets
 
 | Secret | 內容 | 必要 |
 |---|---|---|
 | `ROUTER_HOST` | 你的 DDNS 網域 | ✅ |
-| `ROUTER_SSH_USER` | `tunnel` | ✅ |
-| `ROUTER_SSH_KEY` | **私鑰**全文（`cruise_tunnel` 檔案內容） | ✅ |
-| `ROUTER_SSH_PORT` | 例如 `22022`（未設則用 22） | 選用 |
-| `ROUTER_KNOWN_HOSTS` | `ssh-keyscan -p 22022 你的DDNS` 的輸出 | 建議 |
+| `ROUTER_SSH_USER` | SSH 使用者名稱 | ✅ |
+| `ROUTER_SSH_KEY` | **私鑰**全文 | ✅ |
+| `ROUTER_SSH_PORT` | 非預設埠（未設則用 22） | 選用 |
+| `ROUTER_KNOWN_HOSTS` | `ssh-keyscan` 的輸出 | 建議 |
 
-沒有 `ROUTER_KNOWN_HOSTS` 時會退回 TOFU 模式並發出警告——
-補上它才能防中間人攻擊。
+設定方式（私鑰直接從檔案讀入，不會經過剪貼簿或終端機畫面）：
 
-> ⚠️ 把 SSH 開到公網有風險。務必：關閉密碼登入、換非預設埠、
-> 用專用非 root 帳號、金鑰加 `restrict,port-forwarding` 限制。
+```powershell
+gh secret set ROUTER_HOST        --body "你的DDNS網域"
+gh secret set ROUTER_SSH_USER    --body "你的SSH使用者"
+gh secret set ROUTER_SSH_PORT    --body "2222"
+Get-Content -Raw $env:USERPROFILE\.ssh\cruise_tunnel | gh secret set ROUTER_SSH_KEY
+ssh-keyscan -p 2222 你的DDNS網域 2>$null | gh secret set ROUTER_KNOWN_HOSTS
+```
+
+沒有 `ROUTER_KNOWN_HOSTS` 時會退回 TOFU 模式並發出警告——補上它才能防中間人攻擊。
+
+> ⚠️ 把 SSH 開到公網有風險。務必：關閉密碼登入、換掉預設埠、
+> 用專用金鑰並加上 `no-pty` 等限制。
 
 ## 這個系統怎麼避免「安靜地壞掉」
 
