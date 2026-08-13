@@ -1,27 +1,27 @@
 {
-  "generated_at": "2026-08-13T05:49:18.014979+00:00",
+  "generated_at": "2026-08-13T05:54:15.884060+00:00",
   "run_report": {
-    "generated_at": "2026-08-13T05:49:18.014979+00:00",
+    "generated_at": "2026-08-13T05:54:15.884060+00:00",
     "sources": [
       {
         "source": "icruise",
         "ok": true,
         "count": 13,
-        "duration_s": 25.28,
+        "duration_s": 27.27,
         "error": null
       },
       {
         "source": "expedia",
         "ok": true,
         "count": 3,
-        "duration_s": 8.93,
+        "duration_s": 14.69,
         "error": null
       },
       {
         "source": "cruisedirect",
         "ok": false,
         "count": 0,
-        "duration_s": 39.68,
+        "duration_s": 42.48,
         "error": "BlockedError: Keelung: 挑戰未解除；Tokyo: 挑戰未解除；Yokohama: 挑戰未解除"
       }
     ]
@@ -78,7 +78,7 @@
       "currency": "USD",
       "price_note": "from per person (double occupancy) Includes taxes & fees",
       "detail_url": "https://www.icruise.com/itineraries/10-night-japan-explorer-with-kumano-fireworks-cruise_diamond-princess_8-16-2026.html",
-      "scraped_at": "2026-08-13T05:48:06.812741+00:00",
+      "scraped_at": "2026-08-13T05:52:54.602607+00:00",
       "stale_since": null,
       "other_sources": {}
     },
@@ -189,7 +189,7 @@
       "currency": "USD",
       "price_note": "from per person (double occupancy) Includes taxes & fees",
       "detail_url": "https://www.icruise.com/itineraries/10-night-japan-explorer-cruise_diamond-princess_8-26-2026.html",
-      "scraped_at": "2026-08-13T05:48:14.671085+00:00",
+      "scraped_at": "2026-08-13T05:53:03.244009+00:00",
       "stale_since": null,
       "other_sources": {}
     },
@@ -216,7 +216,7 @@
       "currency": "USD",
       "price_note": "",
       "detail_url": "https://www.icruise.com/itineraries/20-night-grand-japan-cruise_diamond-princess_8-26-2026.html",
-      "scraped_at": "2026-08-13T05:48:14.671085+00:00",
+      "scraped_at": "2026-08-13T05:53:03.244009+00:00",
       "stale_since": null,
       "other_sources": {}
     },
@@ -237,7 +237,7 @@
       "currency": "USD",
       "price_note": "",
       "detail_url": "https://www.icruise.com/itineraries/2-night-keelung-to-busan-cruise_costa-serena_8-26-2026.html",
-      "scraped_at": "2026-08-13T05:48:14.671085+00:00",
+      "scraped_at": "2026-08-13T05:53:03.244009+00:00",
       "stale_since": null,
       "other_sources": {}
     },
@@ -264,7 +264,7 @@
       "currency": "USD",
       "price_note": "from per person (double occupancy) Includes taxes & fees",
       "detail_url": "https://www.icruise.com/itineraries/12-night-best-of-japan-cruise_celebrity-millennium_8-30-2026.html",
-      "scraped_at": "2026-08-13T05:48:18.371783+00:00",
+      "scraped_at": "2026-08-13T05:53:07.301557+00:00",
       "stale_since": null,
       "other_sources": {}
     },
@@ -285,7 +285,7 @@
       "currency": "USD",
       "price_note": "",
       "detail_url": "https://www.icruise.com/itineraries/2-night-keelung-to-busan-cruise_costa-serena_8-31-2026.html",
-      "scraped_at": "2026-08-13T05:48:18.371783+00:00",
+      "scraped_at": "2026-08-13T05:53:07.301557+00:00",
       "stale_since": null,
       "other_sources": {}
     },
@@ -313,7 +313,7 @@
       "currency": "USD",
       "price_note": "from per person (double occupancy) Includes taxes & fees",
       "detail_url": "https://www.icruise.com/itineraries/10-night-circle-japan-cruise_diamond-princess_9-5-2026.html",
-      "scraped_at": "2026-08-13T05:48:21.984260+00:00",
+      "scraped_at": "2026-08-13T05:53:11.165038+00:00",
       "stale_since": null,
       "other_sources": {}
     },
@@ -342,7 +342,7 @@
       "currency": "USD",
       "price_note": "",
       "detail_url": "https://www.icruise.com/itineraries/17-night-grand-circle-japan-cruise_diamond-princess_9-5-2026.html",
-      "scraped_at": "2026-08-13T05:48:21.984260+00:00",
+      "scraped_at": "2026-08-13T05:53:11.165038+00:00",
       "stale_since": null,
       "other_sources": {}
     },
