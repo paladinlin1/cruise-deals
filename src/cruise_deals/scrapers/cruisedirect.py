@@ -251,11 +251,23 @@ def parse_search_page(
   return deals
 
 
+def _save_debug(sb, city_name: str, html: str) -> None:
+  """把被擋的現場存下來，CI 上會當成 artifact 上傳供診斷。"""
+  try:
+    config.DEBUG_DIR.mkdir(parents=True, exist_ok=True)
+    (config.DEBUG_DIR / f"cruisedirect_{city_name}.html").write_text(
+      html, encoding="utf-8"
+    )
+    sb.save_screenshot(str(config.DEBUG_DIR / f"cruisedirect_{city_name}.png"))
+  except Exception as exc:  # noqa: BLE001 - 存不下來也不該影響主流程
+    log.debug("儲存除錯產物失敗：%s", exc)
+
+
 def scrape(
   start: date | None = None,
   lookahead_days: int = config.LOOKAHEAD_DAYS,
   headless: bool = True,
-  wait_s: int = 8,
+  wait_s: int = 12,
 ) -> list[Deal]:
   """擷取 cruisedirect 上東京／橫濱出發、指定窗口內的航次。
 
@@ -285,7 +297,20 @@ def scrape(
         html = sb.get_page_source()
         title = sb.get_title()
 
+        # 資料中心 IP（如 GitHub Actions）上，Cloudflare 常從自動放行
+        # 升級成需要點擊的 Turnstile 核取方塊。試著點掉它再等一次。
         if is_blocked(html, title):
+          log.info("cruisedirect %s 仍在挑戰頁，嘗試點擊 Turnstile", city_name)
+          try:
+            sb.uc_gui_click_captcha()
+          except Exception as exc:  # noqa: BLE001 - 沒有可點的元素也算正常
+            log.debug("點擊 Turnstile 未成功：%s", exc)
+          sb.sleep(wait_s)
+          html = sb.get_page_source()
+          title = sb.get_title()
+
+        if is_blocked(html, title):
+          _save_debug(sb, city_name, html)
           failures.append(f"{city_name}: 挑戰未解除")
           continue
 
