@@ -8,12 +8,14 @@
 
 from __future__ import annotations
 
+import re
 from datetime import date
 from decimal import Decimal
 
 import pytest
 from factories import make_deal
 
+from cruise_deals.fx import Rate
 from cruise_deals.outputs import page, tabular
 from cruise_deals.scrapers.base import ScrapeResult
 
@@ -22,11 +24,24 @@ sync_api = pytest.importorskip(
 )
 
 
+RATE = Rate(usd_twd=Decimal("32"), as_of=date(2026, 8, 17), source="test")
+
+
+def usd(amount: str) -> dict:
+  """外國站報價：保留美元原價，另附換算後的台幣。"""
+  return {
+    "price": Decimal(amount),
+    "currency": "USD",
+    "price_twd": Decimal(amount) * RATE.usd_twd,
+    "fx_rate": RATE.usd_twd,
+  }
+
+
 DEALS = [
   make_deal(
     sail_date=date(2026, 8, 16), depart_port="Yokohama",
     ship_name="Diamond Princess", cruise_line="Princess Cruises",
-    nights=10, price=Decimal("2812"),
+    nights=10, **usd("2812"),
   ),
   make_deal(
     sail_date=date(2026, 8, 16), depart_port="Keelung",
@@ -36,7 +51,7 @@ DEALS = [
   make_deal(
     sail_date=date(2026, 8, 18), depart_port="Tokyo",
     ship_name="Celebrity Millennium", cruise_line="Celebrity Cruises",
-    nights=12, price=Decimal("3001"),
+    nights=12, **usd("3001"),
   ),
   make_deal(
     sail_date=date(2026, 8, 26), depart_port="Yokohama",
@@ -46,7 +61,14 @@ DEALS = [
   make_deal(
     sail_date=date(2026, 9, 5), depart_port="Yokohama",
     ship_name="Diamond Princess", cruise_line="Princess Cruises",
-    nights=17, price=Decimal("1742"),
+    nights=17, **usd("1742"),
+  ),
+  # 台幣原生報價：金額數字比美元那幾筆大得多，但實際上最便宜。
+  # 排序若沒有換算就會把它擺在最貴的一端。
+  make_deal(
+    source="asiayo", sail_date=date(2026, 9, 13), depart_port="Keelung",
+    ship_name="Star Voyager", ship_name_raw="探索星號", cruise_line="Star Cruises",
+    nights=5, price=Decimal("18000"), currency="TWD", price_twd=Decimal("18000"),
   ),
 ]
 
@@ -55,7 +77,8 @@ DEALS = [
 def rendered(tmp_path_factory) -> str:
   """產生頁面並回傳 file:// 網址。"""
   report = tabular.build_report(
-    [ScrapeResult(source="icruise", deals=list(DEALS), ok=True, duration_s=1.0)]
+    [ScrapeResult(source="icruise", deals=list(DEALS), ok=True, duration_s=1.0)],
+    fx=RATE,
   )
   path = tmp_path_factory.mktemp("docs") / "index.html"
   page.write(path, DEALS, report)
@@ -95,6 +118,35 @@ def reset(tab) -> None:
   tab.select_option("#line", "")
 
 
+# 價格欄現在是 "NT$89,984"（台幣為主），無報價則是「洽詢報價」
+_PRICE_RE = re.compile(r"^NT\$([\d,]+(?:\.\d+)?)")
+
+
+def price_of(cell: str) -> float | None:
+  """把價格欄的文字轉成數字；無報價回 None。"""
+  match = _PRICE_RE.match(cell)
+  return float(match.group(1).replace(",", "")) if match else None
+
+
+def prices(tab) -> list[float | None]:
+  return [price_of(c) for c in column(tab, 6)]
+
+
+def sort_by(tab, nth: int, ascending: bool = True) -> None:
+  """把某一欄排成指定方向。
+
+  整個模組共用同一個瀏覽器分頁，排序狀態會跨測試留著，
+  所以不能假設「點一下就是升冪」——點到方向對了為止。
+  """
+  selector = f"#deals thead th:nth-child({nth})"
+  want = "asc" if ascending else "desc"
+  for _ in range(3):
+    if tab.get_attribute(selector, "data-dir") == want:
+      return
+    tab.click(selector)
+  raise AssertionError(f"第 {nth} 欄排不成 {want}")
+
+
 class TestInitialRender:
   def test_shows_every_deal(self, browser_page):
     reset(browser_page)
@@ -111,39 +163,48 @@ class TestInitialRender:
 class TestSorting:
   def test_price_column_sorts_ascending(self, browser_page):
     reset(browser_page)
-    browser_page.click("#deals thead th:nth-child(7)")
-    priced = [c for c in column(browser_page, 6) if c[0].isdigit()]
-    assert priced == sorted(priced, key=lambda s: float(s.replace(",", "")))
+    sort_by(browser_page, 7)
+    priced = [p for p in prices(browser_page) if p is not None]
+    assert priced == sorted(priced)
+
+  def test_twd_and_usd_rows_sort_together(self, browser_page):
+    """跨幣別排序：台幣那筆的數字最大卻最便宜，必須排在最前面。
+
+    這正是「直接比 price 就會錯」的情境——不換算的話 18,000 會被
+    當成比 1,742 貴，排到最後去。
+    """
+    reset(browser_page)
+    sort_by(browser_page, 7)
+    priced = [p for p in prices(browser_page) if p is not None]
+    assert priced[0] == 18000  # asiayo 的台幣原生報價
+    assert priced == sorted(priced)
 
   def test_deals_without_price_sort_last(self, browser_page):
     """「洽詢報價」不能因為沒有數值就排到最前面。"""
     reset(browser_page)
-    browser_page.click("#deals thead th:nth-child(7)")
+    sort_by(browser_page, 7)
     cells = column(browser_page, 6)
-    priced_count = sum(1 for c in cells if c[0].isdigit())
+    priced_count = sum(1 for c in cells if price_of(c) is not None)
     assert all("洽詢報價" in c for c in cells[priced_count:])
 
   def test_deals_without_price_stay_last_when_descending(self, browser_page):
     """降冪時「洽詢報價」一樣要在最後，不能翻到最前面。"""
     reset(browser_page)
-    browser_page.click("#deals thead th:nth-child(7)")  # 升冪
-    browser_page.click("#deals thead th:nth-child(7)")  # 降冪
+    sort_by(browser_page, 7, ascending=False)
     cells = column(browser_page, 6)
-    priced = [c for c in cells if c[0].isdigit()]
-    assert priced == sorted(
-      priced, key=lambda s: float(s.replace(",", "")), reverse=True
-    )
+    priced = [price_of(c) for c in cells if price_of(c) is not None]
+    assert priced == sorted(priced, reverse=True)
     assert all("洽詢報價" in c for c in cells[len(priced):])
 
   def test_nights_column_sorts_numerically(self, browser_page):
     reset(browser_page)
-    browser_page.click("#deals thead th:nth-child(6)")
+    sort_by(browser_page, 6)
     nights = [int(n) for n in column(browser_page, 5)]
     assert nights == sorted(nights)  # 字串排序會把 3 排在 20 後面
 
   def test_date_column_sorts_chronologically(self, browser_page):
     reset(browser_page)
-    browser_page.click("#deals thead th:nth-child(1)")
+    sort_by(browser_page, 1)
     dates = column(browser_page, 0)
     assert dates == sorted(dates)
 

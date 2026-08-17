@@ -3,6 +3,9 @@
 每天自動擷取**基隆、東京、橫濱**出發、**未來一個月內**的郵輪航次，
 整理成統一表格並產生可瀏覽的網頁。
 
+同一個航次同時出現在多個平台時會合併成一列並列出各家報價；
+外國站報美元、台灣站報台幣，全部依當天匯率換算成**台幣**再比較。
+
 | 輸出 | 位置 | 用途 |
 |---|---|---|
 | 表格網頁 | `docs/index.html`（GitHub Pages） | 日常查看，可排序／篩選／搜尋 |
@@ -15,11 +18,16 @@
 
 ## 資料來源現況
 
-| 來源 | 狀態 | 說明 |
-|---|---|---|
-| **icruise.com** | ✅ 正常 | Server-rendered HTML，`httpx` + `selectolax` 直接解析 |
-| **expediacruises.com** | ✅ 正常 | Odysseus Swift API，用瀏覽器取得授權標頭後呼叫 JSON API |
-| **cruisedirect.com** | ✅ 正常 | Cloudflare 保護，用 SeleniumBase CDP Mode 通過 |
+| 來源 | 幣別 | 狀態 | 說明 |
+|---|---|---|---|
+| **icruise.com** | USD | ✅ 正常 | Server-rendered HTML，`httpx` + `selectolax` 直接解析 |
+| **expediacruises.com** | USD | ✅ 正常 | Odysseus Swift API，用瀏覽器取得授權標頭後呼叫 JSON API |
+| **cruisedirect.com** | USD | ✅ 正常 | Cloudflare 保護，用 SeleniumBase CDP Mode 通過 |
+| **asiayo.com** | TWD | ✅ 正常 | Next.js 伺服器渲染，`httpx` 讀 RSC payload，不需瀏覽器 |
+| **bwt.com.tw**（百威旅遊） | TWD | ✅ 正常 | SSE JSON API，`httpx` 直接串流，不需瀏覽器 |
+
+> 百威旅遊的郵輪團期最早在**三個月後**，所以在預設的一個月窗口下它常態回 0 筆。
+> 這是正常狀態，不是壞掉；想看得更遠可以加 `--lookahead-days 180`。
 
 ### cruisedirect 的存取方式
 
@@ -53,7 +61,7 @@
 在 GitHub Actions 裡透過 SSH 連到家用路由器開一條 SOCKS5 通道。
 
 只有 cruisedirect 走這條通道（`CRUISEDIRECT_PROXY` 環境變數），
-icruise 與 expedia 照舊直連，不佔用家用頻寬。
+其餘來源照舊直連，不佔用家用頻寬。
 沒設定 `ROUTER_*` secrets 時整個步驟會跳過，cruisedirect 直連並如常降級。
 
 ##### 路由器端設定
@@ -108,17 +116,108 @@ ssh-keyscan -p 2222 你的DDNS網域 2>$null | gh secret set ROUTER_KNOWN_HOSTS
 > ⚠️ 把 SSH 開到公網有風險。務必：關閉密碼登入、換掉預設埠、
 > 用專用金鑰並加上 `no-pty` 等限制。
 
+### asiayo 的存取方式
+
+伺服器渲染，`httpx` 直接抓即可。資料在 Next.js App Router 的 RSC flight
+payload（`self.__next_f.push([1,"…"])`）裡，串接後可以切出乾淨的 JSON 物件。
+
+**價格是「查詢區間內所有出發日的最低價」，不是逐日價格**——同一筆行程查
+一個月的窗口顯示 18,000，把窗口縮到只含 8/23 那一天卻是 21,583。
+所以要跟 icruise 一樣把窗口切成 5 天一段查詢，逐段的價格才對得上出發日。
+
+⚠️ 不能用「一天一查」（`startDate == endDate`）來取得更精確的價格：
+該站在這種情況下會忽略上界，回傳往後好幾個月的出發日。
+
+另外，使用者從網站分享出來的網址會帶 `cruiseIds` / `companyIds` 篩選，
+沿用會少抓資料，所以只帶日期與分頁。
+
+### 百威旅遊的存取方式
+
+`/destination/…` 頁面本身不含任何商品，資料由前端再打 API 取得。
+可用的是 SSE 端點（一般的 JSON 端點只回骨架，價格全是 `99999999`）：
+
+```
+GET https://ncapi.bwt.com.tw/Shop/Present/GetMainGroupInfoByWebSiteSSE/5
+Accept: text/event-stream
+```
+
+依序推 `step1`（主行程）、`step2`（團期與價格）、`step3`（完成標記）。
+**沒收到 `step3` 就視為失敗**，否則會拿到不完整的資料卻以為「今天就這麼少」。
+
+只收 `departure == "基隆港"` 且 `hasCruisePrice` 的商品：
+桃園機場出發的是「機票＋郵輪」套裝，價格含機票，跟外國站的每人船票價不能比；
+`hasCruisePrice` 則剛好濾掉「單訂船票」之類的渡輪商品。
+
+#### 憑證的坑
+
+該站憑證鏈缺 Subject Key Identifier，而 Python 3.13 起
+`ssl.create_default_context()` 預設開啟 `VERIFY_X509_STRICT`，會直接拒絕連線：
+
+```
+CERTIFICATE_VERIFY_FAILED: Missing Subject Key Identifier
+```
+
+解法是**只**清掉那個嚴格旗標，憑證鏈仍然完整驗證——不要退化成 `verify=False`：
+
+```python
+context = ssl.create_default_context(cafile=certifi.where())
+context.verify_flags &= ~ssl.VERIFY_X509_STRICT
+```
+
+## 匯率與台幣比價
+
+台灣站報台幣、外國站報美元，不換算就比大小的話 379 美元會被判定比
+18,000 台幣便宜——**排序、最低價統計、跨來源比價一律以台幣為準**。
+原始報價與所用匯率都保留在 `price` / `currency` / `fx_rate` 欄位裡。
+
+匯率來源（皆免金鑰，主要來源失敗會自動換備援）：
+
+| 順位 | 來源 |
+|---|---|
+| 1 | `https://open.er-api.com/v6/latest/USD` |
+| 2 | `https://tw.rter.info/capi.php` |
+
+> 沒有用台灣銀行牌告匯率：`rate.bot.com.tw` 已經上了機器人挑戰頁，
+> `httpx` 拿到的是 `Challenge Validation` 的 HTML，在 GitHub Actions 上過不了。
+
+兩個來源都失敗時會**沿用上一次的匯率**並標記為舊資料（網頁上會醒目顯示），
+與「來源擷取失敗就沿用舊資料」同一個原則——沒有匯率會讓整張表失去台幣價，
+比用昨天的匯率糟糕得多。除錯時可以用 `--fx-rate 31.97` 直接指定，不連網。
+
+## 中文船名怎麼跟英文船名合併
+
+台灣站給的是「鑽石公主號」，外國站給的是 `Diamond Princess`，
+不轉換就永遠是兩列、比不了價。對照表在 `config.SHIP_ALIASES`
+（船公司在 `config.CRUISE_LINE_ALIASES`），比對方式是對整段商品名稱做
+**最長子字串比對**——各站把船名塞進標題的寫法差太多，逐一寫 parser 會很脆：
+
+```
+【麗星郵輪探索星號】…                     船公司與船名黏在一起
+【MSC郵輪．榮耀號】…                      中間有分隔符號
+【公主遊輪】鑽石公主號～…                  括號裡只有船公司
+【名人遊輪千禧號】CELEBRITY MILLENNIUM～…  中英並陳
+```
+
+對照表上沒有的新船名會**照原樣輸出並記警告**（終端機、`run_report.warnings`
+與網頁上都看得到），不會讓整個來源失敗——但那一列不會跟外國站合併，
+看到警告就去補 `SHIP_ALIASES`。
+
+另外，**東京與橫濱在去重時視為同一個港**（`config.PORT_GROUPS`）。
+同一班船各站寫法不一（icruise 寫 Yokohama、cruisedirect 寫 Tokyo、
+asiayo 兩個一起寫成「東京（東京/橫濱）」），分開看會讓同一航次合併不起來。
+
 ## 這個系統怎麼避免「安靜地壞掉」
 
 爬蟲最危險的失效不是崩潰，而是**安靜地回傳空清單**，讓你以為今天真的沒有 deal。
 因此有三道防線：
 
-1. **解析器健全性檢查** — icruise 頁面若宣稱有 N 筆結果卻解析出 0 筆，直接拋錯，
-   而不是回傳空清單。
+1. **解析器健全性檢查** — 頁面若宣稱有 N 筆結果卻解析出 0 筆，直接拋錯，
+   而不是回傳空清單（icruise、cruisedirect、asiayo 都有這一關；
+   百威則是檢查 SSE 有沒有收到 `step3`）。
 2. **失敗不覆蓋好資料** — 某來源擷取失敗時，沿用它上一次的資料並標記 `stale_since`，
-   網頁上會明確顯示「這是 X 日抓的資料」。
+   網頁上會明確顯示「這是 X 日抓的資料」。匯率抓不到時同樣沿用上一次的。
 3. **狀態全都攤在明處** — `deals.json` 的 `run_report` 與網頁頂端的狀態橫幅
-   都會列出每個來源的成功／失敗與原因。
+   都會列出每個來源的成功／失敗與原因，對不到英文名的船名也會列成警告。
 
 ## 本機使用
 
@@ -129,19 +228,22 @@ pip install -e ".[dev,browser]"
 patchright install chromium       # Expedia 用
 # cruisedirect 用 SeleniumBase，會自動下載 uc_driver；Linux 另需 apt install xvfb
 
-python -m cruise_deals                              # 全部來源
-python -m cruise_deals --sources icruise            # 只跑輕量來源（最快）
-python -m cruise_deals --dry-run                    # 不寫檔，只印表格
-python -m cruise_deals --sources expedia --headed   # 有頭模式觀察瀏覽器
-python -m cruise_deals --lookahead-days 60          # 改成看兩個月
+python -m cruise_deals                                   # 全部來源
+python -m cruise_deals --sources icruise,asiayo,bwt      # 只跑免瀏覽器的來源（最快）
+python -m cruise_deals --dry-run                         # 不寫檔，只印表格
+python -m cruise_deals --sources expedia --headed        # 有頭模式觀察瀏覽器
+python -m cruise_deals --lookahead-days 60               # 改成看兩個月
+python -m cruise_deals --fx-rate 31.97                   # 指定匯率，不連網查
 ```
+
+`icruise`、`asiayo`、`bwt` 都是純 `httpx`，不需要 Chromium 也不需要 xvfb。
 
 離開碼：**所有**來源都失敗時為 1，否則為 0（部分失敗仍算成功）。
 
 ## 測試
 
 ```bash
-pytest -q          # 220 個測試，約 2 秒
+pytest -q          # 360 個測試，約 2 秒
 ```
 
 測試全部跑在存下來的**真實**回應上（`tests/fixtures/`），不需要網路。
@@ -164,16 +266,19 @@ pytest -q          # 220 個測試，約 2 秒
 
 ```
 src/cruise_deals/
-├── config.py            # 目標港口、日期窗口、各站網址
-├── models.py            # Deal 資料模型、去重鍵、排序
-├── normalize.py         # 港口比對、日期／價格／天數解析（純函式）
+├── config.py            # 目標港口、日期窗口、各站網址、中英船名對照表
+├── models.py            # Deal 資料模型、跨語言去重鍵、以台幣排序
+├── normalize.py         # 港口比對、船名對照、日期／價格／天數解析（純函式）
+├── fx.py                # USD→TWD 匯率取得與換算
 ├── scrapers/
 │   ├── base.py          # ScrapeResult、ParseError／BlockedError、優雅降級
 │   ├── icruise.py       # httpx + selectolax
 │   ├── expedia.py       # patchright 取得授權標頭 + JSON API
-│   └── cruisedirect.py  # 封鎖偵測（解析器待對方開放後補上）
+│   ├── cruisedirect.py  # SeleniumBase CDP Mode 穿過 Cloudflare
+│   ├── asiayo.py        # httpx + Next.js RSC payload
+│   └── bwt.py           # httpx + SSE JSON API
 ├── outputs/
-│   ├── tabular.py       # 合併邏輯、CSV／JSON、歷史快照
+│   ├── tabular.py       # 合併邏輯、台幣換算、CSV／JSON、歷史快照
 │   └── page.py          # 自足的 GitHub Pages 表格網頁
 └── cli.py
 ```
@@ -209,3 +314,18 @@ src/cruise_deals/
 - **去重鍵不含船公司**：各站寫法差異太大（icruise `Celebrity Cruises`
   vs cruisedirect logo 只給 `celebrity`），納入會讓同一航次無法跨來源合併。
   船名在郵輪業是唯一的，加上出發日、夜數、出發港已足以識別。
+- **asiayo 的價格是「查詢區間內最低價」**，不是逐日價。不切段查詢的話，
+  9/13 那班的低價會被套到 8/23 那班上，比價就是錯的。
+- **asiayo 的 `startDate == endDate` 會忽略上界**，回傳往後好幾個月的出發日。
+  想用單日查詢取得精確價格是行不通的。
+- **asiayo 的 TYO 涵蓋東京與橫濱兩個港**，要看行程第一天才分得出來
+  （橫濱出發寫「日本 東京 (橫濱) 登船」，東京出發只寫「日本東京出發」）。
+  所以 `TARGET_PORTS` 裡 Yokohama 必須排在 Tokyo 前面。
+- **百威的憑證缺 Subject Key Identifier**，Python 3.13 預設的
+  `VERIFY_X509_STRICT` 會擋下來。只清那個旗標，不要用 `verify=False`。
+- **百威 30 天內常態 0 筆**是正常的（團期最早在三個月後），
+  所以它過濾後沒有結果時不拋錯——但 SSE 沒收到 `step3` 就一定要拋。
+- **跨幣別一定要換算後才能比**：`_price_rank` 若比 `price` 而不是 `price_twd`，
+  379 USD 會勝過 18,000 TWD，整個比價與排序都會反過來。
+- **Windows 終端機預設 cp950**，印 `✓` 會拋 `UnicodeEncodeError` 讓程式在
+  最後一步掛掉。CLI 啟動時會把 stdout／stderr 切成 UTF-8。

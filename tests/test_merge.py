@@ -12,8 +12,12 @@ from decimal import Decimal
 
 from factories import make_deal
 
+from cruise_deals.fx import Rate
 from cruise_deals.outputs import tabular
 from cruise_deals.scrapers.base import ScrapeResult
+
+# 用整數匯率讓斷言好讀（32 是實際匯率的近似值）
+RATE = Rate(usd_twd=Decimal("32"), as_of=date(2026, 8, 17), source="test")
 
 
 def ok(source: str, deals) -> ScrapeResult:
@@ -160,7 +164,9 @@ class TestCrossSourceDedup:
 
     merged = tabular.merge_results([], [ok("icruise", [a]), ok("expedia", [b])])
 
-    assert merged[0].other_sources == {"icruise": "999"}
+    assert merged[0].other_sources == {
+      "icruise": {"price": "999", "currency": "USD", "price_twd": None}
+    }
 
   def test_real_price_beats_pricing_on_request(self):
     # 「洽詢報價」不該贏過真實報價
@@ -172,7 +178,9 @@ class TestCrossSourceDedup:
     )
 
     assert merged[0].price == Decimal("1200")
-    assert merged[0].other_sources == {"icruise": None}
+    assert merged[0].other_sources == {
+      "icruise": {"price": None, "currency": "USD", "price_twd": None}
+    }
 
   def test_different_sailings_are_not_merged(self):
     a = make_deal(source="icruise", sail_date=date(2026, 8, 16))
@@ -181,6 +189,163 @@ class TestCrossSourceDedup:
     merged = tabular.merge_results([], [ok("icruise", [a]), ok("expedia", [b])])
 
     assert len(merged) == 2
+
+
+class TestCrossCurrencyComparison:
+  """台灣站報台幣、外國站報美元，比價必須換算後再比。"""
+
+  def test_usd_is_converted_to_twd(self):
+    usd = make_deal(source="icruise", price=Decimal("2812"), currency="USD")
+
+    merged = tabular.merge_results([], [ok("icruise", [usd])], rate=RATE)
+
+    assert merged[0].price == Decimal("2812")  # 原始報價保留
+    assert merged[0].price_twd == Decimal("89984")
+    assert merged[0].fx_rate == Decimal("32")
+
+  def test_twd_source_needs_no_conversion(self):
+    twd = make_deal(source="asiayo", price=Decimal("18000"), currency="TWD")
+
+    merged = tabular.merge_results([], [ok("asiayo", [twd])], rate=RATE)
+
+    assert merged[0].price_twd == Decimal("18000")
+    assert merged[0].fx_rate is None  # 沒有經過換算
+
+  def test_cheaper_in_twd_wins_not_smaller_raw_number(self):
+    # 379 USD（約 12,128 元）比 18,000 TWD 便宜，但數字看起來小得多。
+    # 直接比 price 會誤判成美元那筆比較貴。
+    usd = make_deal(source="icruise", price=Decimal("379"), currency="USD")
+    twd = make_deal(source="asiayo", price=Decimal("18000"), currency="TWD")
+
+    merged = tabular.merge_results(
+      [], [ok("icruise", [usd]), ok("asiayo", [twd])], rate=RATE
+    )
+
+    assert len(merged) == 1
+    assert merged[0].source == "icruise"
+
+  def test_expensive_in_twd_loses_even_with_bigger_raw_number(self):
+    # 反向：3,000 USD（96,000 元）比 18,000 TWD 貴，台幣那筆才該勝出
+    usd = make_deal(source="icruise", price=Decimal("3000"), currency="USD")
+    twd = make_deal(source="asiayo", price=Decimal("18000"), currency="TWD")
+
+    merged = tabular.merge_results(
+      [], [ok("icruise", [usd]), ok("asiayo", [twd])], rate=RATE
+    )
+
+    assert merged[0].source == "asiayo"
+    assert merged[0].other_sources == {
+      "icruise": {"price": "3000", "currency": "USD", "price_twd": "96000"}
+    }
+
+  def test_carried_over_other_source_quotes_are_reconverted(self):
+    # 該來源本次沒跑到時，它的報價只剩上次留在 other_sources 裡的紀錄。
+    # 沒重算的話網頁會顯示「NT$None」。
+    carried = make_deal(
+      source="cruisedirect",
+      price=Decimal("379"),
+      other_sources={
+        "expedia": {"price": "379.25", "currency": "USD", "price_twd": None}
+      },
+    )
+
+    merged = tabular.merge_results([carried], [failed("cruisedirect")], rate=RATE)
+
+    assert merged[0].other_sources["expedia"]["price_twd"] == "12136"
+
+  def test_carried_over_quotes_without_a_price_stay_untouched(self):
+    carried = make_deal(
+      other_sources={"icruise": {"price": None, "currency": "USD", "price_twd": None}}
+    )
+
+    merged = tabular.merge_results([carried], [failed("icruise")], rate=RATE)
+
+    assert merged[0].other_sources["icruise"]["price"] is None
+
+  def test_retained_stale_rows_are_reconverted_at_todays_rate(self):
+    # 沿用的舊資料也要用今天的匯率重算，否則整張表的幣別基準不一致
+    old = make_deal(source="expedia", price=Decimal("100"), price_twd=Decimal("1"))
+
+    merged = tabular.merge_results([old], [failed("expedia")], rate=RATE)
+
+    assert merged[0].price_twd == Decimal("3200")
+
+  def test_without_a_rate_ranking_falls_back_to_raw_price(self):
+    # 匯率抓不到時不該整個崩掉，同幣別之間仍要排得對
+    cheap = make_deal(source="icruise", price=Decimal("100"))
+    pricey = make_deal(source="expedia", price=Decimal("900"))
+
+    merged = tabular.merge_results(
+      [], [ok("icruise", [cheap]), ok("expedia", [pricey])], rate=None
+    )
+
+    assert merged[0].source == "icruise"
+    assert merged[0].price_twd is None
+
+
+class TestCrossLanguageDedup:
+  """台灣站的中文船名要能跟外國站的英文船名合併成同一列。"""
+
+  def test_chinese_and_english_ship_names_merge(self):
+    english = make_deal(
+      source="icruise",
+      ship_name="Diamond Princess",
+      depart_port="Yokohama",
+      price=Decimal("2812"),
+    )
+    chinese = make_deal(
+      source="asiayo",
+      ship_name="鑽石公主號",
+      ship_name_raw="鑽石公主號",
+      depart_port="Tokyo",
+      price=Decimal("68232"),
+      currency="TWD",
+    )
+
+    merged = tabular.merge_results(
+      [], [ok("icruise", [english]), ok("asiayo", [chinese])], rate=RATE
+    )
+
+    assert len(merged) == 1
+    # icruise 的 2,812 美元換算後是 89,984 元，比 asiayo 的 68,232 元貴
+    assert merged[0].source == "asiayo"
+    assert merged[0].other_sources == {
+      "icruise": {"price": "2812", "currency": "USD", "price_twd": "89984"}
+    }
+
+  def test_tokyo_and_yokohama_are_the_same_port_for_dedup(self):
+    # 同一班船各站寫法不同：icruise 寫 Yokohama、cruisedirect 寫 Tokyo
+    a = make_deal(source="icruise", depart_port="Yokohama", price=Decimal("2000"))
+    b = make_deal(source="cruisedirect", depart_port="Tokyo", price=Decimal("1900"))
+
+    merged = tabular.merge_results(
+      [], [ok("icruise", [a]), ok("cruisedirect", [b])], rate=RATE
+    )
+
+    assert len(merged) == 1
+    assert merged[0].source == "cruisedirect"
+
+  def test_keelung_does_not_merge_with_tokyo(self):
+    a = make_deal(source="icruise", depart_port="Keelung")
+    b = make_deal(source="asiayo", depart_port="Tokyo")
+
+    merged = tabular.merge_results(
+      [], [ok("icruise", [a]), ok("asiayo", [b])], rate=RATE
+    )
+
+    assert len(merged) == 2
+
+
+class TestUnmappedShipWarnings:
+  def test_chinese_ship_without_english_name_is_reported(self):
+    deals = [make_deal(ship_name="愛達魔都號")]
+
+    assert tabular.unmapped_ship_warnings(deals) == [
+      "這些船名沒有英文對照，無法跨來源比價：愛達魔都號"
+    ]
+
+  def test_english_ship_names_produce_no_warning(self):
+    assert tabular.unmapped_ship_warnings([make_deal()]) == []
 
 
 class TestOutputSorting:
@@ -247,3 +412,40 @@ class TestPersistence:
     with path.open(encoding="utf-8-sig", newline="") as handle:
       row = next(iter(csv.DictReader(handle)))
     assert row["最低價格"] == ""
+
+
+class TestCorruptFileIsSurvivable:
+  """壞掉的 deals.json 不該讓整趟排程崩掉。"""
+
+  def test_unparseable_price_reads_as_no_previous_data(self, tmp_path):
+    path = tmp_path / "deals.json"
+    path.write_text(
+      json.dumps(
+        {
+          "deals": [
+            {
+              "source": "icruise",
+              "sail_date": "2026-08-16",
+              "depart_port": "Keelung",
+              "ship_name": "Costa Serena",
+              "cruise_line": "Costa Cruises",
+              "nights": 3,
+              "price": "亂碼",
+              "scraped_at": "2026-08-13T05:00:00+00:00",
+            }
+          ]
+        }
+      ),
+      encoding="utf-8",
+    )
+
+    assert tabular.read_previous(path) == []
+
+  def test_unparseable_quote_does_not_break_conversion(self):
+    broken = make_deal(
+      other_sources={"expedia": {"price": "亂碼", "currency": "USD", "price_twd": None}}
+    )
+
+    merged = tabular.merge_results([broken], [failed("icruise")], rate=RATE)
+
+    assert merged[0].other_sources["expedia"]["price_twd"] is None

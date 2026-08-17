@@ -136,6 +136,135 @@ def parse_nights(raw: str | int | None) -> int:
   raise ValueError(f"無法解析航行天數: {text!r}")
 
 
+def port_group(port: str | None) -> str:
+  """去重用的港口分組鍵。東京與橫濱視為同一個港（見 config.PORT_GROUPS）。"""
+  name = clean_text(port)
+  return config.PORT_GROUPS.get(name, name.lower())
+
+
+def match_alias(text: str | None, aliases: dict[str, str]) -> str | None:
+  """在整段文字裡找別名表的鍵，回傳對應值；找不到回 None。
+
+  刻意採「最長子字串比對」而非逐一寫 parser——各站把船名與船公司塞在
+  商品名稱裡的寫法差太多（【麗星郵輪探索星號】／【公主遊輪】鑽石公主號～／
+  【MSC郵輪．榮耀號】），寫規則會很脆。最長優先是為了讓
+  「藍寶石公主號」不會被「公主號」之類較短的鍵先搶走。
+  """
+  haystack = clean_text(text)
+  if not haystack:
+    return None
+  best: str | None = None
+  best_len = 0
+  for key, value in aliases.items():
+    if len(key) > best_len and key in haystack:
+      best, best_len = value, len(key)
+  return best
+
+
+# 中英並陳時用來撈出英文船名，例如
+# "【名人遊輪千禧號】CELEBRITY MILLENNIUM～ 12 晚日本精選" -> "CELEBRITY MILLENNIUM"
+_ASCII_NAME_RE = re.compile(r"[A-Za-z][A-Za-z'.\-]*(?:\s+[A-Za-z][A-Za-z'.\-]*)+")
+
+# 平假名／片假名、CJK 擴充 A、CJK 基本區
+_CJK_RE = re.compile(r"[぀-ヿ㐀-䶿一-鿿]")
+
+
+def _has_cjk(text: str) -> bool:
+  """字串裡是否含中日文字元。"""
+  return bool(_CJK_RE.search(text))
+
+
+def canonical_ship(name: str | None) -> str:
+  """把船名正規化成跨來源一致的寫法（英文正式船名）。
+
+  這是台灣站能與外國站合併比價的關鍵：asiayo 給「鑽石公主號」、
+  icruise 給 "Diamond Princess"，不轉換就永遠是兩列。
+
+  依序嘗試：別名表 -> 字串裡的英文船名 -> 原樣（清理空白後）。
+  對不到時回傳原字串而不是拋錯——一艘新船不該讓整個來源掛掉。
+  """
+  text = clean_text(name)
+  if not text:
+    return ""
+
+  alias = match_alias(text, config.SHIP_ALIASES)
+  if alias:
+    return alias
+
+  # 沒有中日文字元代表本來就是英文船名，直接用
+  if not _has_cjk(text):
+    return text
+
+  embedded = _ASCII_NAME_RE.search(text)
+  if embedded:
+    return clean_text(embedded.group())
+
+  return text
+
+
+def is_unmapped_ship(name: str | None) -> bool:
+  """判斷這個船名是否沒對應到英文正式名（含中日文字元即視為未對照）。
+
+  給呼叫端拿去記警告用——安靜地漏掉一艘船不會報錯，
+  只會讓那一列永遠無法跨來源合併，很難察覺。
+  """
+  return _has_cjk(canonical_ship(name))
+
+
+def canonical_cruise_line(name: str | None) -> str:
+  """把船公司名正規化成與其他來源一致的英文寫法。對不到就回原字串。"""
+  text = clean_text(name)
+  if not text:
+    return ""
+  return match_alias(text, config.CRUISE_LINE_ALIASES) or text
+
+
+# 台灣站的商品名稱都把船公司與船名包在【】裡，但船名不一定在括號內：
+#   【麗星郵輪探索星號】…      船公司與船名黏在一起
+#   【MSC郵輪．榮耀號】…       中間用分隔符號
+#   【公主遊輪】鑽石公主號～…   括號裡只有船公司，船名在括號後
+_BRACKET_RE = re.compile(r"【([^】]+)】(.*)$")
+
+# 船名之後的行程敘述分隔符號
+_NAME_TAIL_RE = re.compile(r"[～~｜|、，,].*$")
+
+# 【】裡只放了船公司（沒有船名）的判斷依據
+_LINE_ONLY_RE = re.compile(r"(?:郵輪|遊輪|郵轮|Cruises?)\s*$", re.I)
+
+
+def _strip_line_aliases(text: str) -> str:
+  """從字串裡拿掉船公司名，剩下的通常就是船名。"""
+  for alias in config.CRUISE_LINE_ALIASES:
+    text = text.replace(alias, "")
+  return clean_text(text).strip("．・.-　 ")
+
+
+def split_ship_and_line(name: str | None) -> tuple[str, str, str]:
+  """從台灣站的商品名稱解析出 (正規化船名, 原始船名, 船公司)。
+
+  刻意不針對每種寫法寫 parser——三種寫法都見過，規則會很脆。
+  改成用別名表對整段字串做最長子字串比對，對不到時才退回【】附近的字樣
+  （扣掉船公司），讓資料至少還看得懂。
+  """
+  text = clean_text(name)
+  if not text:
+    return "", "", ""
+
+  line = match_alias(text, config.CRUISE_LINE_ALIASES) or ""
+
+  match = _BRACKET_RE.search(text)
+  bracket = match.group(1) if match else ""
+  # 括號內容以「郵輪／遊輪」收尾代表裡面只有船公司，船名在括號後面
+  inside = "" if _LINE_ONLY_RE.search(bracket) else _strip_line_aliases(bracket)
+  after = (
+    _strip_line_aliases(_NAME_TAIL_RE.sub("", match.group(2))) if match else ""
+  )
+  raw = inside or after or _strip_line_aliases(_NAME_TAIL_RE.sub("", text))
+
+  ship = match_alias(text, config.SHIP_ALIASES) or canonical_ship(raw)
+  return ship, raw, line
+
+
 def split_ports(raw: str | None, separator: str = ",") -> tuple[str, ...]:
   """把停靠港字串切成 tuple。
 

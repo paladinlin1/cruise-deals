@@ -170,3 +170,113 @@ class TestSplitPorts:
     # cruisedirect 用單數 "Port of Call"
     raw = "Port of Call Tokyo, Japan - Kochi, Japan"
     assert normalize.split_ports(raw, separator=" - ") == ("Tokyo, Japan", "Kochi, Japan")
+
+
+class TestChinesePortMatching:
+  """台灣站的港名是中文，要對映到與外國站相同的正規化名稱。"""
+
+  def test_keelung_in_chinese(self):
+    assert normalize.match_port("基隆") == "Keelung"
+
+  def test_keelung_port_suffix(self):
+    assert normalize.match_port("基隆港") == "Keelung"
+
+  def test_tokyo_in_chinese(self):
+    assert normalize.match_port("日本東京出發：下午 4:30") == "Tokyo"
+
+  def test_yokohama_in_chinese(self):
+    assert normalize.match_port("日本 橫濱 登船") == "Yokohama"
+
+  def test_japanese_yokohama_spelling(self):
+    assert normalize.match_port("横浜港") == "Yokohama"
+
+  def test_yokohama_wins_when_both_appear(self):
+    """asiayo 把兩個港併寫成「東京（東京/橫濱）」，行程第一天寫
+    「日本 東京 (橫濱) 登船」的其實是橫濱出發，外國站也都寫 Yokohama。
+    Tokyo 若先比對就會判錯，兩邊就永遠合併不起來。"""
+    assert normalize.match_port("日本 東京 (橫濱) 登船") == "Yokohama"
+
+  def test_non_target_chinese_port_is_ignored(self):
+    assert normalize.match_port("高雄") is None
+
+
+class TestPortGroup:
+  """東京與橫濱在去重時視為同一個港。"""
+
+  def test_tokyo_and_yokohama_share_a_group(self):
+    assert normalize.port_group("Tokyo") == normalize.port_group("Yokohama")
+
+  def test_keelung_has_its_own_group(self):
+    assert normalize.port_group("Keelung") != normalize.port_group("Tokyo")
+
+  def test_unknown_port_falls_back_to_itself(self):
+    assert normalize.port_group("Kobe") == "kobe"
+
+
+class TestCanonicalShip:
+  def test_chinese_name_maps_to_english(self):
+    assert normalize.canonical_ship("鑽石公主號") == "Diamond Princess"
+
+  def test_english_name_is_left_alone(self):
+    assert normalize.canonical_ship("Diamond Princess") == "Diamond Princess"
+
+  def test_longest_alias_wins(self):
+    # 「藍寶石公主號」不可以被較短的鍵先搶走
+    assert normalize.canonical_ship("藍寶石公主號") == "Sapphire Princess"
+
+  def test_english_name_embedded_in_chinese_text_is_extracted(self):
+    name = "【名人遊輪凱旋號】CELEBRITY ASCENT～ 12 晚"
+    assert normalize.canonical_ship(name) == "CELEBRITY ASCENT"
+
+  def test_unknown_chinese_name_is_kept_as_is(self):
+    # 一艘沒登記的新船不該讓整批擷取失敗
+    assert normalize.canonical_ship("愛達魔都號") == "愛達魔都號"
+
+  def test_empty_stays_empty(self):
+    assert normalize.canonical_ship(None) == ""
+
+
+class TestUnmappedShipDetection:
+  def test_chinese_name_without_mapping_is_flagged(self):
+    assert normalize.is_unmapped_ship("愛達魔都號") is True
+
+  def test_mapped_chinese_name_is_not_flagged(self):
+    assert normalize.is_unmapped_ship("鑽石公主號") is False
+
+  def test_english_name_is_not_flagged(self):
+    assert normalize.is_unmapped_ship("Costa Serena") is False
+
+
+class TestSplitShipAndLine:
+  """台灣站把船公司與船名塞在商品名稱裡，三種寫法都要吃。"""
+
+  def test_line_and_ship_glued_together(self):
+    ship, raw, line = normalize.split_ship_and_line(
+      "【麗星郵輪探索星號】鹿兒島、熊本、那霸6天-週日出發"
+    )
+    assert (ship, raw, line) == ("Star Voyager", "探索星號", "Star Cruises")
+
+  def test_line_and_ship_separated_by_a_dot(self):
+    ship, raw, line = normalize.split_ship_and_line("【MSC郵輪．榮耀號】沖繩自主遊４天")
+    assert (ship, raw, line) == ("MSC Bellissima", "榮耀號", "MSC Cruises")
+
+  def test_ship_name_outside_the_brackets(self):
+    ship, raw, line = normalize.split_ship_and_line(
+      "【公主遊輪】鑽石公主號～日本探險家之旅 11天｜可加購橫濱飯店"
+    )
+    assert (ship, raw, line) == ("Diamond Princess", "鑽石公主號", "Princess Cruises")
+
+  def test_unknown_ship_keeps_its_chinese_name(self):
+    ship, raw, line = normalize.split_ship_and_line("【愛達郵輪】魔都號～上海３天")
+    assert ship == raw == "魔都號"
+
+  def test_empty_name_yields_empties(self):
+    assert normalize.split_ship_and_line("") == ("", "", "")
+
+
+class TestMatchAlias:
+  def test_returns_none_when_nothing_matches(self):
+    assert normalize.match_alias("完全無關的字串", {"探索星號": "Star Voyager"}) is None
+
+  def test_returns_none_for_empty_text(self):
+    assert normalize.match_alias("", {"探索星號": "Star Voyager"}) is None

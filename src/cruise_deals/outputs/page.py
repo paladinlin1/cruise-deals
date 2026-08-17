@@ -88,6 +88,12 @@ h1 { font-size: 1.5rem; margin: 0 0 .25rem; }
   overflow-x: auto; background: var(--surface);
   border: 1px solid var(--border); border-radius: .5rem; box-shadow: var(--shadow);
 }
+.note {
+  font-size: .8125rem; padding: .3rem .625rem; border-radius: .375rem;
+  border: 1px solid var(--border); background: var(--surface);
+  color: var(--muted); margin-bottom: 1rem;
+}
+.note.warn { color: var(--warn); background: var(--warn-bg); border-color: currentColor; }
 table { border-collapse: collapse; width: 100%; font-size: .875rem; }
 th, td { padding: .625rem .75rem; text-align: left; white-space: nowrap; }
 th {
@@ -100,8 +106,15 @@ th.sorted .arrow { opacity: 1; color: var(--accent); }
 tbody td { border-bottom: 1px solid var(--border); }
 tbody tr:hover td { background: color-mix(in srgb, var(--accent) 7%, transparent); }
 .route { white-space: normal; min-width: 13rem; }
-.price { font-variant-numeric: tabular-nums; font-weight: 600; }
+/* 價格欄放得下台幣、原幣與比價徽章三樣東西，讓它自己換行，
+   不然整張表會寬到必須橫向捲動才看得到「來源」與「連結」。 */
+.price {
+  font-variant-numeric: tabular-nums; font-weight: 600;
+  white-space: normal; min-width: 7.5rem; max-width: 14rem;
+}
 .noprice { color: var(--muted); font-weight: 400; }
+.orig { font-size: .75rem; font-weight: 400; color: var(--muted); margin-left: .35rem; }
+.others { display: block; margin-top: .15rem; }
 .badge {
   display: inline-block; font-size: .6875rem; padding: .1rem .4rem;
   border-radius: .25rem; border: 1px solid currentColor; color: var(--stale);
@@ -204,27 +217,84 @@ def _format_price(price: Decimal | None) -> str:
   return f"{price:,.2f}"
 
 
+# 各幣別的顯示前綴
+_SYMBOLS = {"TWD": "NT$", "USD": "US$"}
+
+
+def _money(price: Decimal | None, currency: str) -> str:
+  """把金額寫成 "NT$89,876" / "US$2,812"；無報價回「洽詢報價」。"""
+  if price is None:
+    return "洽詢報價"
+  return f"{_SYMBOLS.get(currency.upper(), currency + ' ')}{_format_price(price)}"
+
+
+def _quote_text(quote: dict[str, str | None]) -> str:
+  """other_sources 的一筆報價 -> 顯示字串（台幣為主）。"""
+  raw = quote.get("price")
+  if raw is None:
+    return "洽詢報價"
+  twd = quote.get("price_twd")
+  currency = (quote.get("currency") or "").upper()
+  if twd:
+    return _money(Decimal(twd), "TWD")
+  return _money(Decimal(raw), currency)
+
+
+def _quote_title(source: str, quote: dict[str, str | None]) -> str:
+  """比價徽章的 tooltip：把原幣寫出來，避免只看得到換算後的數字。"""
+  raw = quote.get("price")
+  if raw is None:
+    return f"{source}：洽詢報價"
+  currency = (quote.get("currency") or "").upper()
+  return f"{source}：{_money(Decimal(raw), currency)}"
+
+
 def _options(values: set[str], label: str) -> str:
   items = "".join(f'<option value="{escape(v)}">{escape(v)}</option>' for v in sorted(values))
   return f'<option value="">{escape(label)}</option>{items}'
 
 
-def _row(deal: Deal) -> str:
-  """渲染一列航次。所有文字都經過跳脫。"""
-  price_text = _format_price(deal.price)
-  price_class = "price" if deal.price is not None else "price noprice"
-  price_sort = str(deal.price) if deal.price is not None else ""
+def _price_cell(deal: Deal) -> str:
+  """價格欄：台幣為主、原幣為輔。排序值一律用台幣，跨幣別才排得對。"""
+  amount = deal.price_twd if deal.price_twd is not None else deal.price
+  currency = "TWD" if deal.price_twd is not None else deal.currency
+  main = _money(amount, currency)
+  price_class = "price" if amount is not None else "price noprice"
+  price_sort = str(amount) if amount is not None else ""
 
-  stale = ""
-  if deal.stale_since:
-    stale = f'<span class="badge" title="此來源近期擷取失敗，顯示的是舊資料">{deal.stale_since.isoformat()} 資料</span>'
+  # 原幣不是台幣時把原始報價一起顯示，讓人看得出換算來源
+  original = ""
+  if deal.price is not None and deal.price_twd is not None and deal.currency.upper() != "TWD":
+    original = f'<span class="orig">{escape(_money(deal.price, deal.currency))}</span>'
 
   others = ""
   if deal.other_sources:
     detail = "、".join(
-      f"{src} {price or '洽詢報價'}" for src, price in sorted(deal.other_sources.items())
+      f"{src} {_quote_text(quote)}" for src, quote in sorted(deal.other_sources.items())
     )
-    others = f'<span class="badge" title="其他平台報價">{escape(detail)}</span>'
+    title = "；".join(
+      _quote_title(src, quote) for src, quote in sorted(deal.other_sources.items())
+    )
+    others = (
+      f'<span class="others"><span class="badge" title="{escape(title)}">'
+      f"{escape(detail)}</span></span>"
+    )
+
+  note = deal.price_note
+  if deal.fx_rate is not None:
+    note = f"{note}（1 USD = {deal.fx_rate} TWD）".strip()
+
+  return (
+    f'<td class="{price_class}" data-sort="{price_sort}" title="{escape(note)}">'
+    f"{main}{original}{others}</td>"
+  )
+
+
+def _row(deal: Deal) -> str:
+  """渲染一列航次。所有文字都經過跳脫。"""
+  stale = ""
+  if deal.stale_since:
+    stale = f'<span class="badge" title="此來源近期擷取失敗，顯示的是舊資料">{deal.stale_since.isoformat()} 資料</span>'
 
   link = (
     f'<a href="{escape(deal.detail_url)}" target="_blank" rel="noopener">詳情</a>'
@@ -232,20 +302,30 @@ def _row(deal: Deal) -> str:
     else ""
   )
 
+  # 台灣站的原始中文船名也要搜得到
   haystack = " ".join(
-    [deal.ship_name, deal.cruise_line, deal.depart_port, deal.arrive_port]
+    [
+      deal.ship_name,
+      deal.ship_name_raw,
+      deal.cruise_line,
+      deal.depart_port,
+      deal.arrive_port,
+    ]
     + list(deal.ports_of_call)
   ).lower()
+
+  ship = escape(deal.ship_name)
+  if deal.ship_name_raw and deal.ship_name_raw != deal.ship_name:
+    ship = f'<span title="{escape(deal.ship_name_raw)}">{ship}</span>'
 
   cells = [
     f'<td data-sort="{deal.sail_date.isoformat()}">{deal.sail_date.isoformat()}</td>',
     f"<td>{escape(deal.depart_port)}</td>",
     f'<td class="route">{escape(deal.arrive_port)}</td>',
-    f"<td>{escape(deal.ship_name)}</td>",
+    f"<td>{ship}</td>",
     f"<td>{escape(deal.cruise_line)}</td>",
     f'<td data-sort="{deal.nights}">{deal.nights}</td>',
-    f'<td class="{price_class}" data-sort="{price_sort}"'
-    f' title="{escape(deal.price_note)}">{price_text}{others}</td>',
+    _price_cell(deal),
     f"<td>{escape(deal.source)}{stale}</td>",
     f"<td>{link}</td>",
   ]
@@ -269,14 +349,38 @@ def _source_badges(report: RunReport) -> str:
 
 
 def _stats(deals: list[Deal]) -> str:
-  prices = [d.price for d in deals if d.price is not None]
-  cheapest = f"${_format_price(min(prices))}" if prices else "—"
+  # 各來源幣別不同，最低價一律用台幣比
+  prices = [d.price_twd for d in deals if d.price_twd is not None]
+  cheapest = _money(min(prices), "TWD") if prices else "—"
   ports = len({d.depart_port for d in deals})
   return (
     f'<div class="stat"><b>{len(deals)}</b><span>總航次</span></div>'
-    f'<div class="stat"><b>{cheapest}</b><span>最低價</span></div>'
+    f'<div class="stat"><b>{escape(cheapest)}</b><span>最低價</span></div>'
     f'<div class="stat"><b>{ports}</b><span>出發港</span></div>'
   )
+
+
+def _fx_note(report: RunReport) -> str:
+  """匯率說明。沿用舊匯率時要看得出來，不要讓人以為是今天的匯率。"""
+  rate = report.fx
+  if rate is None:
+    return (
+      '<div class="note warn">沒有取得匯率，美元報價無法換算成台幣，'
+      "跨來源比價與排序會不完整。</div>"
+    )
+  css = "note warn" if rate.stale else "note"
+  suffix = "（本次未取得新匯率，沿用這一天的值）" if rate.stale else ""
+  return (
+    f'<div class="{css}">匯率 1 USD = {escape(str(rate.usd_twd))} TWD'
+    f"・{escape(rate.as_of.isoformat())}・{escape(rate.source)}{suffix}</div>"
+  )
+
+
+def _warnings(report: RunReport) -> str:
+  if not report.warnings:
+    return ""
+  items = "".join(f"<div>{escape(w)}</div>" for w in report.warnings)
+  return f'<div class="note warn">{items}</div>'
 
 
 def render(deals: list[Deal], report: RunReport) -> str:
@@ -290,7 +394,7 @@ def render(deals: list[Deal], report: RunReport) -> str:
     ("郵輪名", False),
     ("船公司", False),
     ("航行天數", True),
-    ("最低價格", True),
+    ("最低價格（台幣）", True),
     ("來源", False),
     ("連結", None),  # None 表示不可排序
   ]
@@ -324,6 +428,8 @@ def render(deals: list[Deal], report: RunReport) -> str:
 
   <div class="stats">{_stats(deals)}</div>
   <div class="sources">{_source_badges(report)}</div>
+  {_fx_note(report)}
+  {_warnings(report)}
 
   <div class="controls">
     <input id="q" type="search" placeholder="搜尋郵輪、船公司、停靠港…" aria-label="搜尋">
@@ -340,7 +446,8 @@ def render(deals: list[Deal], report: RunReport) -> str:
   </div>
 
   <p class="hint">顯示 <span id="shown">{len(deals)}</span> 筆・點欄位標題可排序・
-  價格為每人最低艙房價（多為雙人房，實際條件以各平台頁面為準）。</p>
+  價格為每人最低艙房價（多為雙人房，實際條件以各平台頁面為準）・
+  美元報價已依上方匯率換算成台幣，排序與比價皆以台幣為準。</p>
 </div>
 <script>{_SCRIPT}</script>
 </body>

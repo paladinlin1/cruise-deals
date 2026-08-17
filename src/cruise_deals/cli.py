@@ -14,9 +14,10 @@ import logging
 import sys
 from collections.abc import Callable
 from datetime import date
+from decimal import Decimal, InvalidOperation
 from pathlib import Path
 
-from . import config
+from . import config, fx
 from .models import Deal
 from .outputs import page, tabular
 from .scrapers.base import ScrapeResult, run_scraper
@@ -66,10 +67,22 @@ def default_scrapers() -> dict[str, ScraperFn]:
       lookahead_days=opts.lookahead_days, headless=not opts.headed
     )
 
+  def run_asiayo(opts: argparse.Namespace) -> list[Deal]:
+    from .scrapers import asiayo
+
+    return asiayo.scrape(lookahead_days=opts.lookahead_days)
+
+  def run_bwt(opts: argparse.Namespace) -> list[Deal]:
+    from .scrapers import bwt
+
+    return bwt.scrape(lookahead_days=opts.lookahead_days)
+
   return {
     "icruise": run_icruise,
     "expedia": run_expedia,
     "cruisedirect": run_cruisedirect,
+    "asiayo": run_asiayo,
+    "bwt": run_bwt,
   }
 
 
@@ -100,6 +113,10 @@ def build_parser() -> argparse.ArgumentParser:
   parser.add_argument(
     "--headed", action="store_true", help="瀏覽器型 scraper 改用有頭模式（除錯用）"
   )
+  parser.add_argument(
+    "--fx-rate",
+    help="手動指定 USD→TWD 匯率（例如 31.97），跳過線上查詢。離線除錯用。",
+  )
   parser.add_argument("-v", "--verbose", action="store_true", help="顯示詳細日誌")
   return parser
 
@@ -109,19 +126,72 @@ def print_table(deals: list[Deal]) -> None:
   if not deals:
     print("（沒有符合條件的航次）")
     return
-  header = f"{'出發日期':<12}{'出發港':<10}{'目的港':<28}{'郵輪':<24}{'船公司':<20}{'夜':>3}  {'最低價':>10}"
+  header = (
+    f"{'出發日期':<12}{'出發港':<10}{'目的港':<28}{'郵輪':<24}{'船公司':<20}"
+    f"{'夜':>3}  {'最低價(TWD)':>13}  來源"
+  )
   print(header)
   print("-" * len(header))
   for d in deals:
-    price = f"${d.price:,.0f}" if d.price is not None else "洽詢報價"
+    amount = d.price_twd if d.price_twd is not None else d.price
+    price = f"{amount:,.0f}" if amount is not None else "洽詢報價"
     print(
       f"{d.sail_date.isoformat():<12}{d.depart_port:<10}{d.arrive_port[:26]:<28}"
-      f"{d.ship_name[:22]:<24}{d.cruise_line[:18]:<20}{d.nights:>3}  {price:>10}"
+      f"{d.ship_name[:22]:<24}{d.cruise_line[:18]:<20}{d.nights:>3}  {price:>13}  "
+      f"{d.source}"
     )
+
+
+def resolve_fx(raw: str | None, json_path: Path) -> fx.Rate | None:
+  """決定這次要用的匯率。
+
+  順序：--fx-rate 指定值 -> 線上查詢 -> 沿用上一次的匯率（標記 stale）。
+  三個都沒有才回 None——那時美元報價換不成台幣，網頁會明確標示。
+  """
+  if raw:
+    try:
+      return fx.Rate(
+        usd_twd=Decimal(raw), as_of=date.today(), source="--fx-rate（手動指定）"
+      )
+    except InvalidOperation:
+      log.warning("--fx-rate 不是數字（%r），改為線上查詢", raw)
+
+  try:
+    return fx.fetch()
+  except fx.FxError as exc:
+    log.warning("取得匯率失敗（%s），嘗試沿用上一次的匯率", exc)
+
+  previous = tabular.read_previous_fx(json_path)
+  if previous is None:
+    log.error("沒有可用的匯率，美元報價這次無法換算成台幣")
+    return None
+  log.warning("沿用 %s 的匯率 1 USD = %s TWD", previous.as_of, previous.usd_twd)
+  return fx.Rate(
+    usd_twd=previous.usd_twd,
+    as_of=previous.as_of,
+    source=previous.source,
+    stale=True,
+  )
+
+
+def _use_utf8_output() -> None:
+  """讓終端機輸出走 UTF-8。
+
+  Windows 的預設是 cp950，中文會變亂碼，而 ✓／⚠ 這些符號更會直接
+  拋 UnicodeEncodeError 讓整個程式在最後一步掛掉。
+  """
+  for stream in (sys.stdout, sys.stderr):
+    reconfigure = getattr(stream, "reconfigure", None)
+    if reconfigure is not None:
+      try:
+        reconfigure(encoding="utf-8", errors="replace")
+      except (ValueError, OSError):  # pragma: no cover - 已被重導向的串流
+        pass
 
 
 def main(argv: list[str] | None = None, scrapers: dict[str, ScraperFn] | None = None) -> int:
   """執行一次擷取。回傳離開碼：全部來源都失敗時為 1，否則為 0。"""
+  _use_utf8_output()
   opts = build_parser().parse_args(argv)
   logging.basicConfig(
     level=logging.DEBUG if opts.verbose else logging.INFO,
@@ -136,6 +206,9 @@ def main(argv: list[str] | None = None, scrapers: dict[str, ScraperFn] | None = 
 
   registry = scrapers if scrapers is not None else default_scrapers()
 
+  json_path = Path(opts.output_dir) / "data" / "deals.json"
+  rate = resolve_fx(opts.fx_rate, json_path)
+
   results: list[ScrapeResult] = []
   for name in selected:
     scrape_fn = registry[name]
@@ -146,11 +219,11 @@ def main(argv: list[str] | None = None, scrapers: dict[str, ScraperFn] | None = 
 
   data_dir = Path(opts.output_dir) / "data"
   docs_dir = Path(opts.output_dir) / "docs"
-  json_path = data_dir / "deals.json"
 
   previous = tabular.read_previous(json_path)
-  report = tabular.build_report(results)
-  deals = tabular.merge_results(previous, results)
+  report = tabular.build_report(results, fx=rate)
+  deals = tabular.merge_results(previous, results, rate=rate)
+  report.warnings = tabular.unmapped_ship_warnings(deals)
 
   if opts.dry_run:
     print_table(deals)
@@ -162,10 +235,15 @@ def main(argv: list[str] | None = None, scrapers: dict[str, ScraperFn] | None = 
     page.write(docs_dir / "index.html", deals, report)
     log.info("已寫出 %d 筆到 %s 與 %s", len(deals), data_dir, docs_dir)
 
+  if report.fx is not None:
+    suffix = "（沿用舊匯率）" if report.fx.stale else ""
+    print(f"匯率 1 USD = {report.fx.usd_twd} TWD（{report.fx.as_of}）{suffix}")
   for status in report.sources:
     marker = "✓" if status.ok else "✕"
     detail = f"{status.count} 筆" if status.ok else f"失敗 — {status.error}"
     print(f"{marker} {status.source}: {detail}")
+  for warning in report.warnings:
+    print(f"⚠ {warning}")
 
   if report.all_failed:
     print("所有來源都擷取失敗。", file=sys.stderr)
