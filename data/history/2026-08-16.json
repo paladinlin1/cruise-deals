@@ -1,89 +1,33 @@
 {
-  "generated_at": "2026-08-13T21:36:31.478387+00:00",
+  "generated_at": "2026-08-16T21:13:18.433162+00:00",
   "run_report": {
-    "generated_at": "2026-08-13T21:36:31.478387+00:00",
+    "generated_at": "2026-08-16T21:13:18.433162+00:00",
     "sources": [
       {
         "source": "icruise",
         "ok": true,
         "count": 13,
-        "duration_s": 29.47,
+        "duration_s": 27.18,
         "error": null
       },
       {
         "source": "expedia",
         "ok": true,
-        "count": 3,
-        "duration_s": 10.08,
+        "count": 2,
+        "duration_s": 13.54,
         "error": null
       },
       {
         "source": "cruisedirect",
         "ok": true,
-        "count": 9,
-        "duration_s": 78.1,
+        "count": 7,
+        "duration_s": 75.42,
         "error": null
       }
     ]
   },
   "count": 13,
   "deals": [
-    {
-      "source": "cruisedirect",
-      "sail_date": "2026-08-16",
-      "depart_port": "Keelung",
-      "depart_port_raw": "Keelung (taipei)",
-      "arrive_port": "Keelung (taipei)",
-      "ports_of_call": [
-        "Keelung (taipei)",
-        "Okinawa Is (naha)",
-        "Ishigaki",
-        "Keelung (taipei)"
-      ],
-      "ship_name": "Costa Serena",
-      "cruise_line": "Costa Cruises",
-      "nights": 3,
-      "price": "379",
-      "currency": "USD",
-      "price_note": "各房型最低價（每人，含稅費）",
-      "detail_url": "https://book.cruisedirect.com/swift/cruise/package/1652946?siid=294662",
-      "scraped_at": "2026-08-13T21:35:58.853832+00:00",
-      "stale_since": null,
-      "other_sources": {
-        "icruise": null,
-        "expedia": "379.25"
-      }
-    },
-    {
-      "source": "icruise",
-      "sail_date": "2026-08-16",
-      "depart_port": "Yokohama",
-      "depart_port_raw": "Yokohama, Japan",
-      "arrive_port": "Yokohama, Japan",
-      "ports_of_call": [
-        "Yokohama",
-        "Kumano Japan",
-        "Wakayama",
-        "Kochi",
-        "Busan (Pusan)",
-        "Nagasaki",
-        "Kagoshima",
-        "Shimizu",
-        "Yokohama"
-      ],
-      "ship_name": "Diamond Princess",
-      "cruise_line": "Princess Cruises",
-      "nights": 10,
-      "price": "2812",
-      "currency": "USD",
-      "price_note": "from per person (double occupancy) Includes taxes & fees",
-      "detail_url": "https://www.icruise.com/itineraries/10-night-japan-explorer-with-kumano-fireworks-cruise_diamond-princess_8-16-2026.html",
-      "scraped_at": "2026-08-13T21:34:36.847762+00:00",
-      "stale_since": null,
-      "other_sources": {
-        "cruisedirect": null
-      }
-    },
     {
       "source": "icruise",
       "sail_date": "2026-08-18",
@@ -104,67 +48,56 @@
       "ship_name": "Celebrity Millennium",
       "cruise_line": "Celebrity Cruises",
       "nights": 12,
-      "price": "3151",
+      "price": "1674",
       "currency": "USD",
       "price_note": "from per person (double occupancy) Includes taxes & fees",
       "detail_url": "https://www.icruise.com/itineraries/12-night-best-of-japan-cruise_celebrity-millennium_8-18-2026.html",
-      "scraped_at": "2026-08-13T21:34:41.924288+00:00",
+      "scraped_at": "2026-08-16T21:11:25.513770+00:00",
       "stale_since": null,
       "other_sources": {
-        "cruisedirect": "3151"
+        "cruisedirect": "1674"
       }
     },
     {
-      "source": "cruisedirect",
+      "source": "expedia",
       "sail_date": "2026-08-19",
       "depart_port": "Keelung",
-      "depart_port_raw": "Keelung (taipei)",
-      "arrive_port": "Keelung (taipei)",
-      "ports_of_call": [
-        "Keelung (taipei)",
-        "Okinawa Is (naha)",
-        "Okinawa Is (naha)",
-        "Ishigaki",
-        "Keelung (taipei)"
-      ],
+      "depart_port_raw": "Keelung",
+      "arrive_port": "Keelung",
+      "ports_of_call": [],
       "ship_name": "Costa Serena",
       "cruise_line": "Costa Cruises",
       "nights": 4,
-      "price": "629",
+      "price": "629.0",
       "currency": "USD",
-      "price_note": "各房型最低價（每人，含稅費）",
-      "detail_url": "https://book.cruisedirect.com/swift/cruise/package/1652947?siid=294662",
-      "scraped_at": "2026-08-13T21:35:58.853832+00:00",
+      "price_note": "各房型最低價（每人）",
+      "detail_url": "https://bookus.expediacruises.com/swift/cruise/package/1652947?siid=1095905&lang=1",
+      "scraped_at": "2026-08-16T21:12:03.006773+00:00",
       "stale_since": null,
       "other_sources": {
         "icruise": null,
-        "expedia": "629.25"
+        "cruisedirect": "629"
       }
     },
     {
-      "source": "cruisedirect",
+      "source": "expedia",
       "sail_date": "2026-08-23",
       "depart_port": "Keelung",
-      "depart_port_raw": "Keelung (taipei)",
-      "arrive_port": "Keelung (taipei)",
-      "ports_of_call": [
-        "Keelung (taipei)",
-        "Okinawa Is (naha)",
-        "Ishigaki",
-        "Keelung (taipei)"
-      ],
+      "depart_port_raw": "Keelung",
+      "arrive_port": "Keelung",
+      "ports_of_call": [],
       "ship_name": "Costa Serena",
       "cruise_line": "Costa Cruises",
       "nights": 3,
-      "price": "429",
+      "price": "469.0",
       "currency": "USD",
-      "price_note": "各房型最低價（每人，含稅費）",
-      "detail_url": "https://book.cruisedirect.com/swift/cruise/package/1652948?siid=294662",
-      "scraped_at": "2026-08-13T21:35:58.853832+00:00",
+      "price_note": "各房型最低價（每人）",
+      "detail_url": "https://bookus.expediacruises.com/swift/cruise/package/1652948?siid=1095905&lang=1",
+      "scraped_at": "2026-08-16T21:12:03.006773+00:00",
       "stale_since": null,
       "other_sources": {
         "icruise": null,
-        "expedia": "429.25"
+        "cruisedirect": "469"
       }
     },
     {
@@ -190,11 +123,32 @@
       "currency": "USD",
       "price_note": "from per person (double occupancy) Includes taxes & fees",
       "detail_url": "https://www.icruise.com/itineraries/10-night-japan-explorer-cruise_diamond-princess_8-26-2026.html",
-      "scraped_at": "2026-08-13T21:34:46.367301+00:00",
+      "scraped_at": "2026-08-16T21:11:33.747566+00:00",
       "stale_since": null,
       "other_sources": {
-        "cruisedirect": "1962"
+        "cruisedirect": "2088"
       }
+    },
+    {
+      "source": "icruise",
+      "sail_date": "2026-08-26",
+      "depart_port": "Keelung",
+      "depart_port_raw": "Keelung (Taipei), Taiwan",
+      "arrive_port": "Busan (Pusan), South Korea",
+      "ports_of_call": [
+        "Keelung (Taipei)",
+        "Busan (Pusan)"
+      ],
+      "ship_name": "Costa Serena",
+      "cruise_line": "Costa Cruises",
+      "nights": 2,
+      "price": null,
+      "currency": "USD",
+      "price_note": "",
+      "detail_url": "https://www.icruise.com/itineraries/2-night-keelung-to-busan-cruise_costa-serena_8-26-2026.html",
+      "scraped_at": "2026-08-16T21:11:33.747566+00:00",
+      "stale_since": null,
+      "other_sources": {}
     },
     {
       "source": "icruise",
@@ -219,28 +173,7 @@
       "currency": "USD",
       "price_note": "",
       "detail_url": "https://www.icruise.com/itineraries/20-night-grand-japan-cruise_diamond-princess_8-26-2026.html",
-      "scraped_at": "2026-08-13T21:34:46.367301+00:00",
-      "stale_since": null,
-      "other_sources": {}
-    },
-    {
-      "source": "icruise",
-      "sail_date": "2026-08-26",
-      "depart_port": "Keelung",
-      "depart_port_raw": "Keelung (Taipei), Taiwan",
-      "arrive_port": "Busan (Pusan), South Korea",
-      "ports_of_call": [
-        "Keelung (Taipei)",
-        "Busan (Pusan)"
-      ],
-      "ship_name": "Costa Serena",
-      "cruise_line": "Costa Cruises",
-      "nights": 2,
-      "price": null,
-      "currency": "USD",
-      "price_note": "",
-      "detail_url": "https://www.icruise.com/itineraries/2-night-keelung-to-busan-cruise_costa-serena_8-26-2026.html",
-      "scraped_at": "2026-08-13T21:34:46.367301+00:00",
+      "scraped_at": "2026-08-16T21:11:33.747566+00:00",
       "stale_since": null,
       "other_sources": {}
     },
@@ -267,10 +200,10 @@
       "currency": "USD",
       "price_note": "from per person (double occupancy) Includes taxes & fees",
       "detail_url": "https://www.icruise.com/itineraries/12-night-best-of-japan-cruise_celebrity-millennium_8-30-2026.html",
-      "scraped_at": "2026-08-13T21:34:50.493074+00:00",
+      "scraped_at": "2026-08-16T21:11:33.747566+00:00",
       "stale_since": null,
       "other_sources": {
-        "cruisedirect": "11668"
+        "cruisedirect": "11293"
       }
     },
     {
@@ -290,7 +223,7 @@
       "currency": "USD",
       "price_note": "",
       "detail_url": "https://www.icruise.com/itineraries/2-night-keelung-to-busan-cruise_costa-serena_8-31-2026.html",
-      "scraped_at": "2026-08-13T21:34:50.493074+00:00",
+      "scraped_at": "2026-08-16T21:11:37.486505+00:00",
       "stale_since": null,
       "other_sources": {}
     },
@@ -318,7 +251,7 @@
       "currency": "USD",
       "price_note": "from per person (double occupancy) Includes taxes & fees",
       "detail_url": "https://www.icruise.com/itineraries/10-night-circle-japan-cruise_diamond-princess_9-5-2026.html",
-      "scraped_at": "2026-08-13T21:34:54.439609+00:00",
+      "scraped_at": "2026-08-16T21:11:41.302583+00:00",
       "stale_since": null,
       "other_sources": {
         "cruisedirect": "1742"
@@ -349,7 +282,7 @@
       "currency": "USD",
       "price_note": "",
       "detail_url": "https://www.icruise.com/itineraries/17-night-grand-circle-japan-cruise_diamond-princess_9-5-2026.html",
-      "scraped_at": "2026-08-13T21:34:54.439609+00:00",
+      "scraped_at": "2026-08-16T21:11:41.302583+00:00",
       "stale_since": null,
       "other_sources": {}
     },
@@ -374,15 +307,68 @@
       "ship_name": "Celebrity Millennium",
       "cruise_line": "Celebrity Cruises",
       "nights": 12,
-      "price": "2066",
+      "price": "2590",
       "currency": "USD",
       "price_note": "各房型最低價（每人，含稅費）",
       "detail_url": "https://book.cruisedirect.com/swift/cruise/package/1543054?siid=294662",
-      "scraped_at": "2026-08-13T21:36:14.918256+00:00",
+      "scraped_at": "2026-08-16T21:13:03.271895+00:00",
       "stale_since": null,
       "other_sources": {
-        "icruise": "2712"
+        "icruise": "2742"
       }
+    },
+    {
+      "source": "icruise",
+      "sail_date": "2026-09-15",
+      "depart_port": "Yokohama",
+      "depart_port_raw": "Yokohama, Japan",
+      "arrive_port": "Yokohama, Japan",
+      "ports_of_call": [
+        "Yokohama",
+        "Nagasaki",
+        "Busan (Pusan)",
+        "Kochi",
+        "Shimizu",
+        "Yokohama",
+        "Keelung (Taipei)",
+        "Ishigaki",
+        "Okinawa..."
+      ],
+      "ship_name": "Diamond Princess",
+      "cruise_line": "Princess Cruises",
+      "nights": 16,
+      "price": null,
+      "currency": "USD",
+      "price_note": "",
+      "detail_url": "https://www.icruise.com/itineraries/16-night-grand-japan-with-okinawa-and-taiwan-cruise_diamond-princess_9-15-2026.html",
+      "scraped_at": "2026-08-16T21:11:49.464222+00:00",
+      "stale_since": null,
+      "other_sources": {}
+    },
+    {
+      "source": "icruise",
+      "sail_date": "2026-09-15",
+      "depart_port": "Yokohama",
+      "depart_port_raw": "Yokohama, Japan",
+      "arrive_port": "Yokohama, Japan",
+      "ports_of_call": [
+        "Yokohama",
+        "Nagasaki",
+        "Busan (Pusan)",
+        "Kochi",
+        "Shimizu",
+        "Yokohama"
+      ],
+      "ship_name": "Diamond Princess",
+      "cruise_line": "Princess Cruises",
+      "nights": 7,
+      "price": null,
+      "currency": "USD",
+      "price_note": "",
+      "detail_url": "https://www.icruise.com/itineraries/7-night-japan-and-korea-cruise_diamond-princess_9-15-2026.html",
+      "scraped_at": "2026-08-16T21:11:49.464222+00:00",
+      "stale_since": null,
+      "other_sources": {}
     }
   ]
 }
