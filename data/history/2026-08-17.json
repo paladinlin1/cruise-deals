@@ -1,41 +1,41 @@
 {
-  "generated_at": "2026-08-17T03:50:56.140192+00:00",
+  "generated_at": "2026-08-17T05:11:45.489494+00:00",
   "run_report": {
-    "generated_at": "2026-08-17T03:50:56.140192+00:00",
+    "generated_at": "2026-08-17T05:11:45.489494+00:00",
     "sources": [
       {
         "source": "icruise",
         "ok": true,
         "count": 13,
-        "duration_s": 27.75,
+        "duration_s": 29.87,
         "error": null
       },
       {
         "source": "expedia",
         "ok": true,
         "count": 2,
-        "duration_s": 8.31,
+        "duration_s": 9.12,
         "error": null
       },
       {
         "source": "cruisedirect",
         "ok": true,
         "count": 7,
-        "duration_s": 74.28,
+        "duration_s": 73.3,
         "error": null
       },
       {
         "source": "asiayo",
         "ok": true,
         "count": 10,
-        "duration_s": 43.25,
+        "duration_s": 59.79,
         "error": null
       },
       {
         "source": "bwt",
         "ok": true,
         "count": 0,
-        "duration_s": 1.41,
+        "duration_s": 1.17,
         "error": null
       }
     ],
@@ -73,7 +73,7 @@
       "currency": "USD",
       "price_note": "from per person (double occupancy) Includes taxes & fees",
       "detail_url": "https://www.icruise.com/itineraries/12-night-best-of-japan-cruise_celebrity-millennium_8-18-2026.html",
-      "scraped_at": "2026-08-17T03:48:23.845692+00:00",
+      "scraped_at": "2026-08-17T05:08:55.607640+00:00",
       "stale_since": null,
       "other_sources": {
         "cruisedirect": {
@@ -106,7 +106,7 @@
       "currency": "USD",
       "price_note": "各房型最低價（每人，含稅費）",
       "detail_url": "https://book.cruisedirect.com/swift/cruise/package/1652947?siid=294662",
-      "scraped_at": "2026-08-17T03:49:39.858630+00:00",
+      "scraped_at": "2026-08-17T05:10:15.411093+00:00",
       "stale_since": null,
       "other_sources": {
         "icruise": {
@@ -143,7 +143,7 @@
       "currency": "USD",
       "price_note": "各房型最低價（每人，含稅費）",
       "detail_url": "https://book.cruisedirect.com/swift/cruise/package/1652948?siid=294662",
-      "scraped_at": "2026-08-17T03:49:39.858630+00:00",
+      "scraped_at": "2026-08-17T05:10:15.411093+00:00",
       "stale_since": null,
       "other_sources": {
         "icruise": {
@@ -181,7 +181,7 @@
       "currency": "TWD",
       "price_note": "行程總價（每人，2 人一室起）",
       "detail_url": "https://asiayo.com/zh-tw/cruise/item/51219/?activityStartDate=2026-08-23",
-      "scraped_at": "2026-08-17T03:50:14.748023+00:00",
+      "scraped_at": "2026-08-17T05:10:51.950270+00:00",
       "stale_since": null,
       "other_sources": {},
       "price_twd": "21583",
@@ -211,7 +211,7 @@
       "currency": "USD",
       "price_note": "from per person (double occupancy) Includes taxes & fees",
       "detail_url": "https://www.icruise.com/itineraries/10-night-japan-explorer-cruise_diamond-princess_8-26-2026.html",
-      "scraped_at": "2026-08-17T03:48:28.819644+00:00",
+      "scraped_at": "2026-08-17T05:08:59.634457+00:00",
       "stale_since": null,
       "other_sources": {
         "cruisedirect": {
@@ -246,7 +246,7 @@
       "currency": "USD",
       "price_note": "",
       "detail_url": "https://www.icruise.com/itineraries/2-night-keelung-to-busan-cruise_costa-serena_8-26-2026.html",
-      "scraped_at": "2026-08-17T03:48:28.819644+00:00",
+      "scraped_at": "2026-08-17T05:08:59.634457+00:00",
       "stale_since": null,
       "other_sources": {},
       "price_twd": null,
@@ -276,7 +276,7 @@
       "currency": "USD",
       "price_note": "",
       "detail_url": "https://www.icruise.com/itineraries/20-night-grand-japan-cruise_diamond-princess_8-26-2026.html",
-      "scraped_at": "2026-08-17T03:48:28.819644+00:00",
+      "scraped_at": "2026-08-17T05:08:59.634457+00:00",
       "stale_since": null,
       "other_sources": {},
       "price_twd": null,
@@ -299,7 +299,7 @@
       "currency": "TWD",
       "price_note": "行程總價（每人，2 人一室起）",
       "detail_url": "https://asiayo.com/zh-tw/cruise/item/54113/?activityStartDate=2026-08-28",
-      "scraped_at": "2026-08-17T03:50:18.848064+00:00",
+      "scraped_at": "2026-08-17T05:10:56.087706+00:00",
       "stale_since": null,
       "other_sources": {},
       "price_twd": "20467",
@@ -326,7 +326,7 @@
       "currency": "TWD",
       "price_note": "行程總價（每人，2 人一室起）",
       "detail_url": "https://asiayo.com/zh-tw/cruise/item/51227/?activityStartDate=2026-08-30",
-      "scraped_at": "2026-08-17T03:50:18.848064+00:00",
+      "scraped_at": "2026-08-17T05:10:56.087706+00:00",
       "stale_since": null,
       "other_sources": {},
       "price_twd": "20250",
@@ -356,7 +356,7 @@
       "currency": "TWD",
       "price_note": "行程總價（每人，2 人一室起）",
       "detail_url": "https://asiayo.com/zh-tw/cruise/item/118686/?activityStartDate=2026-08-30",
-      "scraped_at": "2026-08-17T03:50:43.791031+00:00",
+      "scraped_at": "2026-08-17T05:11:28.238138+00:00",
       "stale_since": null,
       "other_sources": {
         "icruise": {
@@ -391,7 +391,7 @@
       "currency": "USD",
       "price_note": "",
       "detail_url": "https://www.icruise.com/itineraries/2-night-keelung-to-busan-cruise_costa-serena_8-31-2026.html",
-      "scraped_at": "2026-08-17T03:48:32.666089+00:00",
+      "scraped_at": "2026-08-17T05:09:03.437047+00:00",
       "stale_since": null,
       "other_sources": {},
       "price_twd": null,
@@ -416,7 +416,7 @@
       "currency": "TWD",
       "price_note": "行程總價（每人，2 人一室起）",
       "detail_url": "https://asiayo.com/zh-tw/cruise/item/51223/?activityStartDate=2026-09-04",
-      "scraped_at": "2026-08-17T03:50:23.268093+00:00",
+      "scraped_at": "2026-08-17T05:11:02.232147+00:00",
       "stale_since": null,
       "other_sources": {},
       "price_twd": "61300",
@@ -447,7 +447,7 @@
       "currency": "USD",
       "price_note": "from per person (double occupancy) Includes taxes & fees",
       "detail_url": "https://www.icruise.com/itineraries/10-night-circle-japan-cruise_diamond-princess_9-5-2026.html",
-      "scraped_at": "2026-08-17T03:48:36.621625+00:00",
+      "scraped_at": "2026-08-17T05:09:07.508907+00:00",
       "stale_since": null,
       "other_sources": {
         "cruisedirect": {
@@ -490,7 +490,7 @@
       "currency": "USD",
       "price_note": "",
       "detail_url": "https://www.icruise.com/itineraries/17-night-grand-circle-japan-cruise_diamond-princess_9-5-2026.html",
-      "scraped_at": "2026-08-17T03:48:36.621625+00:00",
+      "scraped_at": "2026-08-17T05:09:07.508907+00:00",
       "stale_since": null,
       "other_sources": {},
       "price_twd": null,
@@ -515,7 +515,7 @@
       "currency": "TWD",
       "price_note": "行程總價（每人，2 人一室起）",
       "detail_url": "https://asiayo.com/zh-tw/cruise/item/51224/?activityStartDate=2026-09-09",
-      "scraped_at": "2026-08-17T03:50:28.837254+00:00",
+      "scraped_at": "2026-08-17T05:11:05.944715+00:00",
       "stale_since": null,
       "other_sources": {},
       "price_twd": "24000",
@@ -545,7 +545,7 @@
       "currency": "USD",
       "price_note": "Retail Price $3,106 Save $364 from per person (double occupancy) Includes taxes & fees",
       "detail_url": "https://www.icruise.com/itineraries/12-night-best-of-japan-cruise_celebrity-millennium_9-11-2026.html",
-      "scraped_at": "2026-08-17T03:48:45.007724+00:00",
+      "scraped_at": "2026-08-17T05:09:18.010689+00:00",
       "stale_since": null,
       "other_sources": {
         "cruisedirect": {
@@ -583,7 +583,7 @@
       "currency": "TWD",
       "price_note": "行程總價（每人，2 人一室起）",
       "detail_url": "https://asiayo.com/zh-tw/cruise/item/51219/?activityStartDate=2026-09-13",
-      "scraped_at": "2026-08-17T03:50:32.542871+00:00",
+      "scraped_at": "2026-08-17T05:11:11.376184+00:00",
       "stale_since": null,
       "other_sources": {},
       "price_twd": "18000",
@@ -611,7 +611,7 @@
       "currency": "USD",
       "price_note": "",
       "detail_url": "https://www.icruise.com/itineraries/7-night-japan-and-korea-cruise_diamond-princess_9-15-2026.html",
-      "scraped_at": "2026-08-17T03:48:45.007724+00:00",
+      "scraped_at": "2026-08-17T05:09:18.010689+00:00",
       "stale_since": null,
       "other_sources": {},
       "price_twd": null,
@@ -642,7 +642,7 @@
       "currency": "USD",
       "price_note": "",
       "detail_url": "https://www.icruise.com/itineraries/16-night-grand-japan-with-okinawa-and-taiwan-cruise_diamond-princess_9-15-2026.html",
-      "scraped_at": "2026-08-17T03:48:45.007724+00:00",
+      "scraped_at": "2026-08-17T05:09:18.010689+00:00",
       "stale_since": null,
       "other_sources": {},
       "price_twd": null,
