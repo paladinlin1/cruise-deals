@@ -64,8 +64,10 @@ class TestParseSearchPage:
     html = "<html><body><h1>Last Minute Cruises</h1></body></html>"
     with pytest.raises(ParseError) as exc:
       cruisedirect.parse_search_page(html, title="Last Minute Cruises")
-    # 訊息要告訴維護者下一步怎麼做
-    assert "debug" in str(exc.value).lower()
+    # 訊息要指名是哪個選擇器不見了，修解析器的人才知道從哪查起。
+    # 現場檔案的路徑由呼叫端 parse_or_save() 補上——這支純函式沒有做 I/O，
+    # 不該宣稱自己存了檔（見 TestErrorMessagesDoNotLie）。
+    assert "article.node--type-sailing" in str(exc.value)
 
 
 @pytest.fixture(scope="module")
@@ -327,3 +329,111 @@ class TestFailureIsGraceful:
     assert result.ok is False
     assert "Cloudflare" in (result.error or "")
     assert result.deals == []
+
+
+class FakeSb:
+  """假的 SeleniumBase，只需要有 save_screenshot。"""
+
+  def __init__(self, screenshot_fails: bool = False):
+    self.screenshot_fails = screenshot_fails
+    self.screenshots: list[str] = []
+
+  def save_screenshot(self, path: str) -> None:
+    if self.screenshot_fails:
+      raise RuntimeError("瀏覽器已經關掉了")
+    self.screenshots.append(path)
+
+
+class TestDebugArtifactOnParseFailure:
+  """解析失敗時要把現場存下來。
+
+  這是實際踩到的坑：原本只有「被 Cloudflare 擋下」那條路徑會存檔，
+  但錯誤訊息卻宣稱 HTML 已存到 debug/。結果對方改版那天 CI 上什麼都沒留下，
+  執行報告叫你去比對一個根本不存在的檔案。
+  """
+
+  @pytest.fixture(autouse=True)
+  def debug_dir(self, tmp_path, monkeypatch):
+    from cruise_deals import config
+
+    monkeypatch.setattr(config, "DEBUG_DIR", tmp_path / "debug")
+    return tmp_path / "debug"
+
+  def test_successful_parse_writes_nothing(self, debug_dir):
+    html = (FIXTURES / "cruisedirect_keelung.html").read_text(encoding="utf-8")
+
+    deals = cruisedirect.parse_or_save(FakeSb(), "Keelung", html, "CruiseDirect")
+
+    assert deals
+    assert not debug_dir.exists()
+
+  def test_parse_failure_saves_the_page(self, debug_dir):
+    html = "<html><body>對方改版了</body></html>"
+
+    with pytest.raises(ParseError):
+      cruisedirect.parse_or_save(FakeSb(), "Keelung", html, "CruiseDirect")
+
+    saved = debug_dir / "cruisedirect_Keelung.html"
+    assert saved.read_text(encoding="utf-8") == html
+
+  def test_error_message_points_at_the_saved_file(self, debug_dir):
+    with pytest.raises(ParseError) as excinfo:
+      cruisedirect.parse_or_save(FakeSb(), "Tokyo", "<html></html>", "CruiseDirect")
+
+    assert str(debug_dir / "cruisedirect_Tokyo.html") in str(excinfo.value)
+
+  def test_screenshot_is_also_taken(self, debug_dir):
+    sb = FakeSb()
+
+    with pytest.raises(ParseError):
+      cruisedirect.parse_or_save(sb, "Keelung", "<html></html>", "CruiseDirect")
+
+    assert sb.screenshots == [str(debug_dir / "cruisedirect_Keelung.png")]
+
+  def test_failed_screenshot_does_not_lose_the_html(self, debug_dir):
+    # 截圖失敗（瀏覽器掛了）不該讓已經存下來的 HTML 白費
+    with pytest.raises(ParseError) as excinfo:
+      cruisedirect.parse_or_save(
+        FakeSb(screenshot_fails=True), "Keelung", "<html></html>", "CruiseDirect"
+      )
+
+    assert (debug_dir / "cruisedirect_Keelung.html").exists()
+    assert "現場已存到" in str(excinfo.value)
+
+  def test_blocked_error_is_not_downgraded(self, debug_dir):
+    # BlockedError 與 ParseError 的處置方式不同，重建例外時不能弄丟型別
+    html = (FIXTURES / "cruisedirect_challenge.html").read_text(encoding="utf-8")
+
+    with pytest.raises(BlockedError):
+      cruisedirect.parse_or_save(FakeSb(), "Keelung", html, "Just a moment...")
+
+  def test_unwritable_debug_dir_still_raises_the_original_error(
+    self, monkeypatch, debug_dir
+  ):
+    from cruise_deals import config
+
+    # 存不下來（例如唯讀檔案系統）也不該把原本的錯誤吃掉
+    monkeypatch.setattr(config, "DEBUG_DIR", debug_dir / "nope\0invalid")
+
+    with pytest.raises(ParseError) as excinfo:
+      cruisedirect.parse_or_save(FakeSb(), "Keelung", "<html></html>", "CruiseDirect")
+
+    assert "現場已存到" not in str(excinfo.value)
+
+
+class TestErrorMessagesDoNotLie:
+  """純函式沒有做 I/O，訊息就不該宣稱檔案已經存好了。"""
+
+  def test_missing_articles_message_makes_no_file_claim(self):
+    with pytest.raises(ParseError) as excinfo:
+      cruisedirect.parse_search_page("<html><body>改版</body></html>", "CruiseDirect")
+
+    assert "已存到" not in str(excinfo.value)
+
+  def test_unparsable_cards_message_makes_no_file_claim(self):
+    html = '<article class="node--type-sailing"></article>'
+
+    with pytest.raises(ParseError) as excinfo:
+      cruisedirect.parse_search_page(html, "CruiseDirect")
+
+    assert "已存到" not in str(excinfo.value)

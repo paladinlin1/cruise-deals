@@ -33,6 +33,12 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          # 抓「分支當下的最新狀態」，而不是這次 run 被建立時釘住的 commit。
+          # 用 GitHub UI 的 Re-run 重跑一次舊執行時，預設會 checkout 當初那個
+          # commit；抓完資料 commit 上去後 push 一定被拒（remote 早就前進了），
+          # 整個工作就會以 exit 1 收場，看起來像擷取壞掉其實只是基準過期。
+          ref: ${{ github.head_ref || github.ref_name }}
 
       - uses: actions/setup-python@v5
         with:

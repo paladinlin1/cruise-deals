@@ -288,7 +288,7 @@ python -m cruise_deals --fx-rate 31.97                   # 指定匯率，不連
 ## 測試
 
 ```bash
-pytest -q          # 360 個測試，約 2 秒
+pytest -q          # 371 個測試，約 3 秒
 ```
 
 測試全部跑在存下來的**真實**回應上（`tests/fixtures/`），不需要網路。
@@ -377,3 +377,13 @@ scripts/
   379 USD 會勝過 18,000 TWD，整個比價與排序都會反過來。
 - **Windows 終端機預設 cp950**，印 `✓` 會拋 `UnicodeEncodeError` 讓程式在
   最後一步掛掉。CLI 啟動時會把 stdout／stderr 切成 UTF-8。
+- **GitHub UI 的「Re-run」會 checkout 當初那次 run 釘住的 commit**，不是分支最新狀態。
+  這個 workflow 每次都會 commit 資料回 repo，所以重跑一次舊執行時，
+  基準永遠是過期的，`git push` 必被拒（`! [rejected] main -> main (fetch first)`），
+  整個工作以 exit 1 收場——看起來像擷取壞掉，其實只是基準過期。
+  解法是 `actions/checkout` 加上 `ref: ${{ github.head_ref || github.ref_name }}`。
+  要重驗擷取流程請用 **Run workflow**（workflow_dispatch），不要用 Re-run。
+- **錯誤訊息不可以宣稱自己做了沒做的事**。cruisedirect 的 ParseError 原本寫著
+  「HTML 已存到 debug/cruisedirect.html 供比對」，但存檔只發生在「被 Cloudflare
+  擋下」那條路徑上；真的遇到改版時 CI 什麼都沒留下，執行報告卻叫你去比對一個
+  不存在的檔案。現在解析失敗也會存現場，路徑由 `parse_or_save()` 補進訊息裡。

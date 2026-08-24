@@ -28,6 +28,7 @@ import os
 import re
 from datetime import date, datetime, time, timedelta, timezone
 from decimal import Decimal
+from pathlib import Path
 from urllib.parse import quote
 
 from selectolax.parser import HTMLParser, Node
@@ -230,8 +231,7 @@ def parse_search_page(
   articles = tree.css("article.node--type-sailing")
   if not articles:
     raise ParseError(
-      "頁面裡找不到 article.node--type-sailing——cruisedirect 版面可能已改版。"
-      "HTML 已存到 debug/cruisedirect.html 供比對。"
+      "頁面裡找不到 article.node--type-sailing——cruisedirect 版面可能已改版"
     )
 
   scraped_at = utcnow()
@@ -244,7 +244,7 @@ def parse_search_page(
   if articles and not deals:
     raise ParseError(
       f"頁面有 {len(articles)} 張航程卡片，卻解析出 0 筆——"
-      "cruisedirect 版面可能已改版。HTML 已存到 debug/cruisedirect.html 供比對。"
+      "cruisedirect 版面可能已改版"
     )
 
   if start and end:
@@ -283,16 +283,52 @@ def proxy_setting() -> str | None:
   return f"{scheme}://{match.group('host')}:{match.group('port')}"
 
 
-def _save_debug(sb, city_name: str, html: str) -> None:
-  """把被擋的現場存下來，CI 上會當成 artifact 上傳供診斷。"""
+def _save_debug(sb, city_name: str, html: str) -> Path | None:
+  """把失敗當下的現場存下來，CI 上會當成 artifact 上傳供診斷。
+
+  回傳 HTML 的存檔路徑，讓呼叫端可以把它寫進錯誤訊息——否則執行報告上
+  只看得到「版面可能已改版」，卻不知道要去哪裡看現場。
+  """
   try:
     config.DEBUG_DIR.mkdir(parents=True, exist_ok=True)
-    (config.DEBUG_DIR / f"cruisedirect_{city_name}.html").write_text(
-      html, encoding="utf-8"
-    )
-    sb.save_screenshot(str(config.DEBUG_DIR / f"cruisedirect_{city_name}.png"))
+    path = config.DEBUG_DIR / f"cruisedirect_{city_name}.html"
+    path.write_text(html, encoding="utf-8")
   except Exception as exc:  # noqa: BLE001 - 存不下來也不該影響主流程
-    log.debug("儲存除錯產物失敗：%s", exc)
+    log.debug("儲存除錯 HTML 失敗：%s", exc)
+    return None
+
+  # 截圖另外處理：截不到不影響 HTML 已經存下來這件事
+  try:
+    sb.save_screenshot(str(config.DEBUG_DIR / f"cruisedirect_{city_name}.png"))
+  except Exception as exc:  # noqa: BLE001
+    log.debug("儲存除錯截圖失敗：%s", exc)
+
+  return path
+
+
+def parse_or_save(
+  sb,
+  city_name: str,
+  html: str,
+  title: str,
+  start: date | None = None,
+  end: date | None = None,
+) -> list[Deal]:
+  """解析結果頁；解析不出來時先把現場存下來再把例外往上拋。
+
+  解析失敗才是最需要現場的時候——原本只有「被擋下」那條路徑會存檔，
+  導致對方改版時 CI 上什麼都沒留下，事後完全無從比對。
+
+  重建例外時用 type(exc)，才不會把 BlockedError 降級成 ParseError；
+  這兩者的處置方式不同（見 base.py）。
+  """
+  try:
+    return parse_search_page(html, title, start, end)
+  except ParseError as exc:
+    saved = _save_debug(sb, city_name, html)
+    if saved is None:
+      raise
+    raise type(exc)(f"{exc}（現場已存到 {saved}）") from exc
 
 
 def scrape(
@@ -352,7 +388,7 @@ def scrape(
           failures.append(f"{city_name}: 挑戰未解除")
           continue
 
-        page_deals = parse_search_page(html, title, start, end)
+        page_deals = parse_or_save(sb, city_name, html, title, start, end)
         for deal in page_deals:
           collected[deal.dedup_key] = deal
         log.info("cruisedirect %s：%d 筆", city_name, len(page_deals))
