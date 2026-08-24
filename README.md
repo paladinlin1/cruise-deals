@@ -66,16 +66,44 @@
 
 ##### 路由器端設定
 
-已在真實環境驗證通過：Netgear R7000 + Entware（Linux 4.19 armv7l，SSH server 為 **dropbear**）。
+已在真實環境驗證通過：Netgear R7000 刷 **Asuswrt-Merlin** 韌體 + Entware
+（Linux 4.19 armv7l，SSH server 為 **dropbear**）。
 
-**建議為 CI 另外產生一把專用金鑰**，不要沿用你平常登入用的那把：
+###### 1. 產生 CI 專用金鑰（在你自己的電腦上）
+
+**不要沿用你平常登入用的那把**——這把要放進 GitHub secret，權限也要縮到最小：
 
 ```powershell
 ssh-keygen -t ed25519 -f $env:USERPROFILE\.ssh\cruise_tunnel -C "cruise-deals-ci" -N '""'
 ```
 
-把**公鑰**加到路由器的 `authorized_keys`（通常在 `/root/.ssh/` 或 `/opt/home/<user>/.ssh/`），
-並在該行前面加上限制選項：
+會產生兩個檔案：`cruise_tunnel`（**私鑰**，只留在電腦與 GitHub secret）
+與 `cruise_tunnel.pub`（**公鑰**，等一下放上路由器）。
+
+###### 2. 把公鑰裝上路由器，而且要撐得過重開機
+
+Merlin 的 `/` 是每次開機從韌體重建的 ramdisk，root 的家目錄
+（`/root` → `/tmp/home/root`）躺在 tmpfs 上，**所以直接寫進
+`~/.ssh/authorized_keys` 的公鑰一重開機就沒了**。持久的地方是 `/jffs`。
+
+`scripts/merlin-authorized-keys.sh` 把這件事包起來：公鑰存進 `/jffs`，
+再掛一支 `/jffs/scripts/services-start` 鉤子，開機後合併回 root 的
+`authorized_keys`。
+
+先確認 WebUI 的 **Administration → System → Enable JFFS custom scripts and
+configs** 是開的（否則 `/jffs/scripts/*` 開機不會被執行），然後：
+
+```powershell
+# 把腳本送上路由器（不需要先 clone，直接把本機檔案灌過去）
+ssh -p 2222 你的SSH使用者@你的DDNS網域 'cat > /tmp/merlin-authorized-keys.sh' `
+  < scripts\merlin-authorized-keys.sh
+
+# 安裝（公鑰不是機密，直接當參數貼上沒關係）
+$pub = Get-Content -Raw $env:USERPROFILE\.ssh\cruise_tunnel.pub
+ssh -p 2222 你的SSH使用者@你的DDNS網域 "sh /tmp/merlin-authorized-keys.sh install '$pub'"
+```
+
+它會自動補上 dropbear 的限制選項，存成這樣：
 
 ```
 no-pty,no-agent-forwarding,no-X11-forwarding ssh-ed25519 AAAA...你的公鑰... cruise-deals-ci
@@ -85,13 +113,30 @@ no-pty,no-agent-forwarding,no-X11-forwarding ssh-ed25519 AAAA...你的公鑰... 
 > 禁止配置終端機、禁止 agent 與 X11 轉發，只留下建立通道所需的埠轉發能力。
 > 這把金鑰即使外洩，也開不了互動 shell。
 
-取得主機金鑰指紋（給下面的 `ROUTER_KNOWN_HOSTS` 用）：
+重開機後這樣驗收：
+
+```bash
+sh /jffs/scripts/cruise-authorized-keys.sh status
+```
+
+腳本的三個子命令：`install`（安裝並立即生效）、`apply`（手動重跑合併，
+開機時會自動執行）、`status`（檢查現況）。它只接受公鑰——誤貼私鑰會被擋下來。
+合併是逐行比對後補上，不會洗掉你從 WebUI 或 NVRAM 灌進去的其他金鑰。
+
+> **更穩的做法**：Merlin 的 WebUI 有內建的 SSH 公鑰欄位
+> （Administration → System → Authorized Keys），那是存在 NVRAM 裡的，
+> 由韌體自己在開機時寫進 `authorized_keys`，比外掛鉤子更不容易被蓋掉。
+> 已知的邊界情況：中途重啟 sshd（例如在 WebUI 改設定）時，韌體可能會
+> 依 NVRAM 重寫 `authorized_keys`，把鉤子補上的那行沖掉，要到下次開機
+> 或手動跑 `apply` 才會回來。兩邊都放最保險。
+
+###### 3. 取得主機金鑰指紋（給下面的 `ROUTER_KNOWN_HOSTS` 用）
 
 ```powershell
 ssh-keyscan -p 2222 你的DDNS網域
 ```
 
-##### GitHub Secrets
+###### 4. GitHub Secrets
 
 | Secret | 內容 | 必要 |
 |---|---|---|
@@ -281,6 +326,9 @@ src/cruise_deals/
 │   ├── tabular.py       # 合併邏輯、台幣換算、CSV／JSON、歷史快照
 │   └── page.py          # 自足的 GitHub Pages 表格網頁
 └── cli.py
+
+scripts/
+└── merlin-authorized-keys.sh   # 路由器端：讓 CI 專用公鑰撐過重開機（Asuswrt-Merlin）
 ```
 
 ## 實作上踩過的坑（都已處理）
