@@ -12,6 +12,7 @@ from __future__ import annotations
 from datetime import date
 from decimal import Decimal
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
@@ -437,3 +438,201 @@ class TestErrorMessagesDoNotLie:
       cruisedirect.parse_search_page(html, "CruiseDirect")
 
     assert "已存到" not in str(excinfo.value)
+
+
+@pytest.fixture(scope="module")
+def zero_results_html() -> str:
+  """真實抓到的「0 Cruises」頁面。
+
+  2026-08-23 起基隆在那個日期窗口內真的一班都沒有。這份是 CI 存下來的
+  現場（run 32710731522），頁面本身完全正常，不是 Cloudflare 挑戰頁。
+  """
+  return (FIXTURES / "cruisedirect_zero_results.html").read_text(encoding="utf-8")
+
+
+class TestMatchedCount:
+  """頁面宣稱的筆數是「真的沒船」與「改版了」之間唯一的分界線。"""
+
+  def test_reads_zero_from_an_empty_result_page(self, zero_results_html):
+    assert cruisedirect.matched_count(zero_results_html) == 0
+
+  def test_reads_the_count_from_a_page_with_results(self, keelung_html):
+    assert cruisedirect.matched_count(keelung_html) == 3
+
+  def test_claimed_count_matches_what_we_actually_parse(self, keelung_html):
+    # 兩者對不上就代表解析漏了東西
+    deals = cruisedirect.parse_search_page(keelung_html)
+    assert len(deals) == cruisedirect.matched_count(keelung_html)
+
+  def test_unknown_layout_yields_none(self):
+    assert cruisedirect.matched_count("<html><body>改版了</body></html>") is None
+
+  def test_challenge_page_has_no_count(self, challenge_html):
+    assert cruisedirect.matched_count(challenge_html) is None
+
+
+class TestZeroResultsIsNotAFailure:
+  """某個港口當天沒航次，不該被誤判成對方改版。
+
+  實際踩到（2026-08-23）：基隆掛零 -> 拋 ParseError -> 因為當時是直接
+  往上拋，東京與橫濱連抓都沒抓，整個 cruisedirect 來源歸零。
+  """
+
+  def test_zero_results_page_parses_to_an_empty_list(self, zero_results_html):
+    assert cruisedirect.parse_search_page(zero_results_html, title="ok") == []
+
+  def test_zero_results_page_does_not_raise(self, zero_results_html):
+    # 沒有 pytest.raises，這行本身就是斷言
+    cruisedirect.parse_search_page(
+      zero_results_html, title="ok", start=date(2026, 8, 13), end=date(2026, 9, 12)
+    )
+
+  def test_claiming_results_but_finding_no_cards_still_raises(self):
+    # 宣稱有 24 筆卻一張卡片都沒有 -> 這才是改版
+    html = '<html><body><h2 class="view-header">24 Cruises</h2></body></html>'
+
+    with pytest.raises(ParseError, match="24"):
+      cruisedirect.parse_search_page(html, title="ok")
+
+  def test_unknown_count_with_no_cards_raises(self):
+    # 連筆數都讀不到 -> 版面真的變了，要大聲失敗
+    with pytest.raises(ParseError, match="未知"):
+      cruisedirect.parse_search_page("<html><body></body></html>", title="ok")
+
+  def test_zero_results_leaves_no_debug_artifact(self, zero_results_html, tmp_path,
+                                                 monkeypatch):
+    from cruise_deals import config
+
+    monkeypatch.setattr(config, "DEBUG_DIR", tmp_path / "debug")
+    cruisedirect.parse_or_save(FakeSb(), "Keelung", zero_results_html, "ok")
+
+    assert not (tmp_path / "debug").exists()
+
+
+class FakeBrowser:
+  """假的 SeleniumBase，依網址裡的 city_id 回傳對應的頁面。"""
+
+  def __init__(self, pages: dict[str, str], title: str = "Cruise Search Results"):
+    self.pages = pages
+    self.title = title
+    self.url = ""
+    self.screenshots: list[str] = []
+    self.cdp = SimpleNamespace(click_captcha=lambda: None)
+
+  def __enter__(self):
+    return self
+
+  def __exit__(self, *exc_info):
+    return False
+
+  def activate_cdp_mode(self, url: str) -> None:
+    self.url = url
+
+  def sleep(self, _seconds) -> None:
+    pass
+
+  def get_page_source(self) -> str:
+    for city, city_id in cruisedirect.DEPARTURE_CITY_IDS.items():
+      if str(city_id) in self.url:
+        return self.pages[city]
+    raise AssertionError(f"沒有為這個網址準備頁面：{self.url}")
+
+  def get_title(self) -> str:
+    return self.title
+
+  def save_screenshot(self, path: str) -> None:
+    self.screenshots.append(path)
+
+
+@pytest.fixture
+def fake_browser(monkeypatch, tmp_path):
+  """把 seleniumbase.SB 換成假的，讓 scrape() 的整個迴圈跑得起來。"""
+  import seleniumbase
+
+  from cruise_deals import config
+
+  monkeypatch.setattr(config, "DEBUG_DIR", tmp_path / "debug")
+  made: list[FakeBrowser] = []
+
+  def install(pages, title="Cruise Search Results"):
+    browser = FakeBrowser(pages, title)
+    made.append(browser)
+    monkeypatch.setattr(seleniumbase, "SB", lambda **_kw: browser)
+    return browser
+
+  return install
+
+
+class TestScrapeIsResilientPerCity:
+  """一個城市出事不該把另外兩個城市一起拖下水。"""
+
+  def _scrape(self):
+    return cruisedirect.scrape(
+      start=date(2026, 8, 13), lookahead_days=30, wait_s=0
+    )
+
+  def test_empty_city_does_not_block_the_others(
+    self, fake_browser, zero_results_html, tokyo_html, yokohama_html
+  ):
+    fake_browser({
+      "Keelung": zero_results_html,  # 這個港口當天沒航次
+      "Tokyo": tokyo_html,
+      "Yokohama": yokohama_html,
+    })
+
+    deals = self._scrape()
+
+    assert {d.depart_port for d in deals} == {"Tokyo", "Yokohama"}
+
+  def test_one_broken_city_does_not_block_the_others(
+    self, fake_browser, tokyo_html, yokohama_html
+  ):
+    # 只有基隆那頁改版，另外兩個港口照樣要拿得到
+    fake_browser({
+      "Keelung": "<html><body>改版了</body></html>",
+      "Tokyo": tokyo_html,
+      "Yokohama": yokohama_html,
+    })
+
+    deals = self._scrape()
+
+    assert {d.depart_port for d in deals} == {"Tokyo", "Yokohama"}
+
+  def test_broken_city_still_leaves_a_debug_artifact(
+    self, fake_browser, tmp_path, tokyo_html, yokohama_html
+  ):
+    fake_browser({
+      "Keelung": "<html><body>改版了</body></html>",
+      "Tokyo": tokyo_html,
+      "Yokohama": yokohama_html,
+    })
+
+    self._scrape()
+
+    assert (tmp_path / "debug" / "cruisedirect_Keelung.html").exists()
+
+  def test_every_city_empty_is_a_success_with_no_deals(
+    self, fake_browser, zero_results_html
+  ):
+    # 全部港口都沒航次是合法狀態，不該讓來源失敗
+    fake_browser({c: zero_results_html for c in cruisedirect.DEPARTURE_CITY_IDS})
+
+    assert self._scrape() == []
+
+  def test_every_city_broken_fails_as_a_parse_error(self, fake_browser):
+    fake_browser({c: "<html>改版</html>" for c in cruisedirect.DEPARTURE_CITY_IDS})
+
+    with pytest.raises(ParseError) as excinfo:
+      self._scrape()
+
+    # 不能報成 BlockedError——那會讓人以為是被擋，跑去調整代理而不是修解析器
+    assert not isinstance(excinfo.value, BlockedError)
+
+  def test_every_city_blocked_still_fails_as_blocked(self, fake_browser, challenge_html):
+    fake_browser(
+      {c: challenge_html for c in cruisedirect.DEPARTURE_CITY_IDS},
+      title="Just a moment...",
+    )
+
+    with pytest.raises(BlockedError):
+      self._scrape()

@@ -88,6 +88,23 @@ _BLOCKED_MARKERS = (
 # "Aug 30, 2026 - Sep 11, 2026 Sun - Fri Bonus Details" -> 取前面的出發日
 _DATE_CELL_RE = re.compile(r"([A-Z][a-z]{2}\s+\d{1,2},\s*\d{4})")
 
+# 結果頁標題列的筆數："0 Cruises" / "24 Cruises"
+_COUNT_RE = re.compile(r"([\d,]+)\s+Cruises?", re.I)
+
+
+def matched_count(html: str) -> int | None:
+  """讀出頁面宣稱的航次數。找不到這個欄位時回 None。
+
+  這是「這個港口今天真的沒船」與「對方改版了」之間唯一的分界線。
+  少了它，某個港口剛好掛零就會被誤判成改版——而且因為解析失敗會中斷
+  整個來源，另外兩個港口連抓都不會被抓到。實際發生過（2026-08-23）。
+  """
+  for node in HTMLParser(html).css("h2.view-header"):
+    match = _COUNT_RE.search(node.text())
+    if match:
+      return int(match.group(1).replace(",", ""))
+  return None
+
 
 def is_blocked(html: str, title: str = "") -> bool:
   """判斷這一頁是不是機器人防護的攔截頁。"""
@@ -229,9 +246,14 @@ def parse_search_page(
 
   tree = HTMLParser(html)
   articles = tree.css("article.node--type-sailing")
+  claimed = matched_count(html)
+
   if not articles:
+    if claimed == 0:
+      return []  # 這個港口在這個窗口內真的沒有航次，不是改版
     raise ParseError(
-      "頁面裡找不到 article.node--type-sailing——cruisedirect 版面可能已改版"
+      "頁面裡找不到 article.node--type-sailing（頁面宣稱 "
+      f"{'未知' if claimed is None else claimed} 筆）——cruisedirect 版面可能已改版"
     )
 
   scraped_at = utcnow()
@@ -350,6 +372,7 @@ def scrape(
 
   collected: dict[tuple, Deal] = {}
   failures: list[str] = []
+  parse_errors: list[ParseError] = []
 
   # Linux 上以 xvfb 提供虛擬顯示（GitHub Actions 需要）；Windows 直接開視窗
   import sys
@@ -392,14 +415,21 @@ def scrape(
         for deal in page_deals:
           collected[deal.dedup_key] = deal
         log.info("cruisedirect %s：%d 筆", city_name, len(page_deals))
-      except ParseError:
-        raise
+      except ParseError as exc:
+        # 單一城市解析失敗不該中斷其他城市：只有那一頁改版、或那個港口
+        # 當天掛零，不代表另外兩個港口也拿不到資料。
+        parse_errors.append(exc)
+        failures.append(f"{city_name}: {exc}")
+        log.warning("cruisedirect %s 解析失敗：%s", city_name, exc)
       except Exception as exc:  # noqa: BLE001 - 單一城市失敗不該中斷其他城市
         failures.append(f"{city_name}: {type(exc).__name__}: {exc}")
         log.warning("cruisedirect %s 擷取失敗：%s", city_name, exc)
 
   if failures and not collected:
-    raise BlockedError("；".join(failures))
+    # 每個城市都失敗了才讓整個來源失敗。型別要選對，因為處置方式不同：
+    # 全部都是被擋下 -> BlockedError（改解析器沒有用）
+    # 只要有一個是解析失敗 -> ParseError（去看 debug/ 裡存下來的現場）
+    raise (ParseError if parse_errors else BlockedError)("；".join(failures))
   if failures:
     log.warning("cruisedirect 部分城市失敗：%s", "；".join(failures))
 
