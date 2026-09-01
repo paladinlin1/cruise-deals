@@ -1,41 +1,41 @@
 {
-  "generated_at": "2026-09-01T00:13:27.038525+00:00",
+  "generated_at": "2026-09-01T22:56:18.953467+00:00",
   "run_report": {
-    "generated_at": "2026-09-01T00:13:27.038525+00:00",
+    "generated_at": "2026-09-01T22:56:18.953467+00:00",
     "sources": [
       {
         "source": "icruise",
         "ok": true,
-        "count": 17,
-        "duration_s": 17.98,
+        "count": 16,
+        "duration_s": 17.64,
         "error": null
       },
       {
         "source": "expedia",
         "ok": true,
-        "count": 3,
-        "duration_s": 8.79,
+        "count": 2,
+        "duration_s": 7.27,
         "error": null
       },
       {
         "source": "cruisedirect",
         "ok": true,
         "count": 8,
-        "duration_s": 76.51,
+        "duration_s": 80.14,
         "error": null
       },
       {
         "source": "asiayo",
         "ok": false,
         "count": 0,
-        "duration_s": 3.35,
+        "duration_s": 2.27,
         "error": "AttributeError: 'str' object has no attribute 'get'"
       },
       {
         "source": "bwt",
         "ok": true,
         "count": 0,
-        "duration_s": 1.34,
+        "duration_s": 1.1,
         "error": null
       }
     ],
@@ -47,7 +47,7 @@
     "source": "open.er-api.com",
     "stale": false
   },
-  "count": 25,
+  "count": 24,
   "deals": [
     {
       "source": "asiayo",
@@ -94,20 +94,20 @@
       "ship_name": "Diamond Princess",
       "cruise_line": "Princess Cruises",
       "nights": 10,
-      "price": "1742",
+      "price": "4237",
       "currency": "USD",
       "price_note": "from per person (double occupancy) Includes taxes & fees",
       "detail_url": "https://www.icruise.com/itineraries/10-night-circle-japan-cruise_diamond-princess_9-5-2026.html",
-      "scraped_at": "2026-09-01T00:11:40.676285+00:00",
+      "scraped_at": "2026-09-01T22:54:32.125668+00:00",
       "stale_since": null,
       "other_sources": {
         "cruisedirect": {
-          "price": "1742",
+          "price": null,
           "currency": "USD",
-          "price_twd": "55221"
+          "price_twd": null
         }
       },
-      "price_twd": "55221",
+      "price_twd": "134312",
       "fx_rate": "31.69974",
       "ship_name_raw": ""
     },
@@ -136,7 +136,7 @@
       "currency": "USD",
       "price_note": "",
       "detail_url": "https://www.icruise.com/itineraries/17-night-grand-circle-japan-cruise_diamond-princess_9-5-2026.html",
-      "scraped_at": "2026-09-01T00:11:40.676285+00:00",
+      "scraped_at": "2026-09-01T22:54:32.125668+00:00",
       "stale_since": null,
       "other_sources": {},
       "price_twd": null,
@@ -213,20 +213,20 @@
       "ship_name": "Celebrity Millennium",
       "cruise_line": "Celebrity Cruises",
       "nights": 12,
-      "price": "1909",
+      "price": "1934",
       "currency": "USD",
       "price_note": "from per person (double occupancy) Includes taxes & fees",
       "detail_url": "https://www.icruise.com/itineraries/12-night-best-of-japan-cruise_celebrity-millennium_9-11-2026.html",
-      "scraped_at": "2026-09-01T00:11:46.121306+00:00",
+      "scraped_at": "2026-09-01T22:54:37.568860+00:00",
       "stale_since": null,
       "other_sources": {
         "cruisedirect": {
-          "price": "1909",
+          "price": "1934",
           "currency": "USD",
-          "price_twd": "60515"
+          "price_twd": "61307"
         }
       },
-      "price_twd": "60515",
+      "price_twd": "61307",
       "fx_rate": "31.69974",
       "ship_name_raw": ""
     },
@@ -269,19 +269,16 @@
         "Busan (Pusan)",
         "Kochi",
         "Shimizu",
-        "Yokohama",
-        "Keelung (Taipei)",
-        "Ishigaki",
-        "Okinawa..."
+        "Yokohama"
       ],
       "ship_name": "Diamond Princess",
       "cruise_line": "Princess Cruises",
-      "nights": 16,
+      "nights": 7,
       "price": null,
       "currency": "USD",
       "price_note": "",
-      "detail_url": "https://www.icruise.com/itineraries/16-night-grand-japan-with-okinawa-and-taiwan-cruise_diamond-princess_9-15-2026.html",
-      "scraped_at": "2026-09-01T00:11:46.121306+00:00",
+      "detail_url": "https://www.icruise.com/itineraries/7-night-japan-and-korea-cruise_diamond-princess_9-15-2026.html",
+      "scraped_at": "2026-09-01T22:54:37.568860+00:00",
       "stale_since": null,
       "other_sources": {},
       "price_twd": null,
@@ -300,16 +297,19 @@
         "Busan (Pusan)",
         "Kochi",
         "Shimizu",
-        "Yokohama"
+        "Yokohama",
+        "Keelung (Taipei)",
+        "Ishigaki",
+        "Okinawa..."
       ],
       "ship_name": "Diamond Princess",
       "cruise_line": "Princess Cruises",
-      "nights": 7,
+      "nights": 16,
       "price": null,
       "currency": "USD",
       "price_note": "",
-      "detail_url": "https://www.icruise.com/itineraries/7-night-japan-and-korea-cruise_diamond-princess_9-15-2026.html",
-      "scraped_at": "2026-09-01T00:11:46.121306+00:00",
+      "detail_url": "https://www.icruise.com/itineraries/16-night-grand-japan-with-okinawa-and-taiwan-cruise_diamond-princess_9-15-2026.html",
+      "scraped_at": "2026-09-01T22:54:37.568860+00:00",
       "stale_since": null,
       "other_sources": {},
       "price_twd": null,
@@ -317,32 +317,40 @@
       "ship_name_raw": ""
     },
     {
-      "source": "icruise",
+      "source": "cruisedirect",
       "sail_date": "2026-09-16",
       "depart_port": "Tokyo",
-      "depart_port_raw": "Tokyo, Japan",
-      "arrive_port": "Kobe, Japan",
+      "depart_port_raw": "Tokyo",
+      "arrive_port": "Kobe / Kyoto",
       "ports_of_call": [
         "Tokyo",
         "Shimizu",
         "Shingu",
         "Kagoshima",
-        "Hashima Island",
         "Nagasaki",
-        "Busan (Pusan)",
-        "Karatsu Japan..."
+        "Busan",
+        "Karatsu",
+        "Hiroshima",
+        "Takamatsu",
+        "Kobe / Kyoto"
       ],
       "ship_name": "Star Seeker",
-      "cruise_line": "Windstar Cruises",
+      "cruise_line": "Windstar Logo",
       "nights": 10,
-      "price": "7619",
+      "price": "5115",
       "currency": "USD",
-      "price_note": "from per person (double occupancy) Includes taxes & fees",
-      "detail_url": "https://www.icruise.com/itineraries/10-night-grand-japan-cruise_star-seeker_9-16-2026.html",
-      "scraped_at": "2026-09-01T00:11:48.845346+00:00",
+      "price_note": "各房型最低價（每人，含稅費）",
+      "detail_url": "https://book.cruisedirect.com/swift/cruise/package/1533139?siid=294662",
+      "scraped_at": "2026-09-01T22:55:59.660684+00:00",
       "stale_since": null,
-      "other_sources": {},
-      "price_twd": "241520",
+      "other_sources": {
+        "icruise": {
+          "price": "7619",
+          "currency": "USD",
+          "price_twd": "241520"
+        }
+      },
+      "price_twd": "162144",
       "fx_rate": "31.69974",
       "ship_name_raw": ""
     },
@@ -371,15 +379,9 @@
       "currency": "USD",
       "price_note": "from per person (double occupancy) Includes taxes & fees",
       "detail_url": "https://www.icruise.com/itineraries/15-night-japan-intensive-cruise-tokyo-hiroshima-and-kobe-cruise_azamara-pursuit_9-17-2026.html",
-      "scraped_at": "2026-09-01T00:11:48.845346+00:00",
+      "scraped_at": "2026-09-01T22:54:40.148611+00:00",
       "stale_since": null,
-      "other_sources": {
-        "expedia": {
-          "price": "8229.0",
-          "currency": "USD",
-          "price_twd": "260857"
-        }
-      },
+      "other_sources": {},
       "price_twd": "260857",
       "fx_rate": "31.69974",
       "ship_name_raw": ""
@@ -408,7 +410,7 @@
       "currency": "USD",
       "price_note": "from per person (double occupancy) Includes taxes & fees",
       "detail_url": "https://www.icruise.com/itineraries/14-night-japan-featuring-osaka-and-hokkaido-cruise_silver-moon_9-19-2026.html",
-      "scraped_at": "2026-09-01T00:11:48.845346+00:00",
+      "scraped_at": "2026-09-01T22:54:40.148611+00:00",
       "stale_since": null,
       "other_sources": {},
       "price_twd": "494516",
@@ -461,7 +463,7 @@
       "currency": "USD",
       "price_note": "from per person (double occupancy) Includes taxes & fees",
       "detail_url": "https://www.icruise.com/itineraries/9-night-okinawa-and-taiwan-cruise_diamond-princess_9-22-2026.html",
-      "scraped_at": "2026-09-01T00:11:51.507937+00:00",
+      "scraped_at": "2026-09-01T22:54:42.907973+00:00",
       "stale_since": null,
       "other_sources": {
         "cruisedirect": {
@@ -498,15 +500,9 @@
       "currency": "USD",
       "price_note": "from per person (double occupancy) Includes taxes & fees",
       "detail_url": "https://www.icruise.com/itineraries/18-night-grand-japan-with-okinawa-and-taiwan-cruise_diamond-princess_9-22-2026.html",
-      "scraped_at": "2026-09-01T00:11:51.507937+00:00",
+      "scraped_at": "2026-09-01T22:54:42.907973+00:00",
       "stale_since": null,
-      "other_sources": {
-        "cruisedirect": {
-          "price": "3646",
-          "currency": "USD",
-          "price_twd": "115577"
-        }
-      },
+      "other_sources": {},
       "price_twd": "115577",
       "fx_rate": "31.69974",
       "ship_name_raw": ""
@@ -560,18 +556,18 @@
       "currency": "USD",
       "price_note": "from per person (double occupancy) Includes taxes & fees",
       "detail_url": "https://www.icruise.com/itineraries/12-night-best-of-japan-and-south-korea-cruise_celebrity-millennium_9-23-2026.html",
-      "scraped_at": "2026-09-01T00:11:51.507937+00:00",
+      "scraped_at": "2026-09-01T22:54:42.907973+00:00",
       "stale_since": null,
       "other_sources": {
         "expedia": {
-          "price": "3747.2",
+          "price": null,
           "currency": "USD",
-          "price_twd": "118785"
+          "price_twd": null
         },
         "cruisedirect": {
-          "price": "3747",
+          "price": null,
           "currency": "USD",
-          "price_twd": "118779"
+          "price_twd": null
         }
       },
       "price_twd": "118779",
@@ -644,7 +640,7 @@
       "currency": "USD",
       "price_note": "各房型最低價（每人）",
       "detail_url": "https://bookus.expediacruises.com/swift/cruise/package/1558527?siid=1095905&lang=1",
-      "scraped_at": "2026-09-01T00:12:05.824906+00:00",
+      "scraped_at": "2026-09-01T22:54:55.435884+00:00",
       "stale_since": null,
       "other_sources": {
         "icruise": {
@@ -680,42 +676,12 @@
       ],
       "ship_name": "Westerdam",
       "cruise_line": "Holland America Line",
-      "nights": 14,
-      "price": null,
-      "currency": "USD",
-      "price_note": "",
-      "detail_url": "https://www.icruise.com/itineraries/14-night-circle-japan-cruise_westerdam_9-27-2026.html",
-      "scraped_at": "2026-09-01T00:11:54.368401+00:00",
-      "stale_since": null,
-      "other_sources": {},
-      "price_twd": null,
-      "fx_rate": "31.69974",
-      "ship_name_raw": ""
-    },
-    {
-      "source": "icruise",
-      "sail_date": "2026-09-27",
-      "depart_port": "Tokyo",
-      "depart_port_raw": "Tokyo, Japan",
-      "arrive_port": "Tokyo, Japan",
-      "ports_of_call": [
-        "Tokyo",
-        "Osaka",
-        "Kochi",
-        "Hiroshima",
-        "Cruising the Kanmon Strait",
-        "Busan (Pusan)",
-        "Sakaiminato",
-        "Tsuruga..."
-      ],
-      "ship_name": "Westerdam",
-      "cruise_line": "Holland America Line",
       "nights": 27,
       "price": null,
       "currency": "USD",
       "price_note": "",
       "detail_url": "https://www.icruise.com/itineraries/27-night-circle-japan-cruise_westerdam_9-27-2026.html",
-      "scraped_at": "2026-09-01T00:11:54.368401+00:00",
+      "scraped_at": "2026-09-01T22:54:45.483700+00:00",
       "stale_since": null,
       "other_sources": {
         "cruisedirect": {
@@ -751,7 +717,37 @@
       "currency": "USD",
       "price_note": "",
       "detail_url": "https://www.icruise.com/itineraries/28-night-southeast-asia-horizons-cruise_viking-venus_9-27-2026.html",
-      "scraped_at": "2026-09-01T00:11:54.368401+00:00",
+      "scraped_at": "2026-09-01T22:54:45.483700+00:00",
+      "stale_since": null,
+      "other_sources": {},
+      "price_twd": null,
+      "fx_rate": "31.69974",
+      "ship_name_raw": ""
+    },
+    {
+      "source": "icruise",
+      "sail_date": "2026-09-27",
+      "depart_port": "Tokyo",
+      "depart_port_raw": "Tokyo, Japan",
+      "arrive_port": "Tokyo, Japan",
+      "ports_of_call": [
+        "Tokyo",
+        "Osaka",
+        "Kochi",
+        "Hiroshima",
+        "Cruising the Kanmon Strait",
+        "Busan (Pusan)",
+        "Sakaiminato",
+        "Tsuruga..."
+      ],
+      "ship_name": "Westerdam",
+      "cruise_line": "Holland America Line",
+      "nights": 14,
+      "price": null,
+      "currency": "USD",
+      "price_note": "",
+      "detail_url": "https://www.icruise.com/itineraries/14-night-circle-japan-cruise_westerdam_9-27-2026.html",
+      "scraped_at": "2026-09-01T22:54:45.483700+00:00",
       "stale_since": null,
       "other_sources": {},
       "price_twd": null,
@@ -781,7 +777,7 @@
       "currency": "USD",
       "price_note": "from per person (double occupancy) Includes taxes & fees",
       "detail_url": "https://www.icruise.com/itineraries/9-night-japan-explorer-cruise_diamond-princess_10-1-2026.html",
-      "scraped_at": "2026-09-01T00:11:57.043348+00:00",
+      "scraped_at": "2026-09-01T22:54:48.159730+00:00",
       "stale_since": null,
       "other_sources": {
         "cruisedirect": {
@@ -791,36 +787,6 @@
         }
       },
       "price_twd": "52526",
-      "fx_rate": "31.69974",
-      "ship_name_raw": ""
-    },
-    {
-      "source": "icruise",
-      "sail_date": "2026-10-01",
-      "depart_port": "Yokohama",
-      "depart_port_raw": "Yokohama, Japan",
-      "arrive_port": "Yokohama, Japan",
-      "ports_of_call": [
-        "Yokohama",
-        "Toba",
-        "Osaka",
-        "Kochi",
-        "Hiroshima",
-        "Cruising the Kanmon Strait",
-        "Busan (Pusan)",
-        "Nagasaki..."
-      ],
-      "ship_name": "Diamond Princess",
-      "cruise_line": "Princess Cruises",
-      "nights": 18,
-      "price": null,
-      "currency": "USD",
-      "price_note": "",
-      "detail_url": "https://www.icruise.com/itineraries/18-night-grand-circle-japan-cruise_diamond-princess_10-1-2026.html",
-      "scraped_at": "2026-09-01T00:11:57.043348+00:00",
-      "stale_since": null,
-      "other_sources": {},
-      "price_twd": null,
       "fx_rate": "31.69974",
       "ship_name_raw": ""
     }
