@@ -21,6 +21,11 @@
     那會少抓資料，這裡只帶日期與分頁。
   - 港口代碼只有 KEE／KHH／SIN／TYO，**沒有獨立的橫濱**；
     TYO 寫成「東京（東京/橫濱）」，實際是哪個港要看行程第一天的敘述。
+  - **同一個物件在 payload 裡第二次出現時會被 React Flight 去重成參照字串**
+    （`"port":"$5f:props:events:1:properties:bnbs:0:port"`）。哪一份是本體、
+    哪一份是參照取決於元件輸出順序：8/17 是卡片先出、GA 追蹤事件放參照，
+    9/16 對調過來，卡片上的 port／journey／availableDates 全變成參照。
+    所以抽出商品物件後要先把參照解開，兩種順序才都吃得下。
 """
 
 from __future__ import annotations
@@ -56,6 +61,16 @@ _FLIGHT_RE = re.compile(r"self\.__next_f\.push\(\[1,\s*")
 
 # 商品物件的起點
 _ITEM_RE = re.compile(r'"item":\s*\{"id":\s*\d+,\s*"name":')
+
+# React Flight 的列參照：`$<列號>` 或 `$<列號>:<路徑段>:<路徑段>…`，列號是小寫十六進位。
+# 其他 `$` 開頭的是別種標記（`$undefined`、`$L5` lazy、`$$` 跳脫的錢字號…），不能碰。
+_REF_RE = re.compile(r"^\$([0-9a-f]+)(?::(.*))?$")
+
+# 參照連鎖的深度上限；正常資料兩三層就到底，超過代表有環或格式變了
+_MAX_REF_DEPTH = 20
+
+# React 元件在 payload 裡是 ["$", type, key, props]，路徑段用名字指索引
+_ELEMENT_SLOTS = {"type": 1, "key": 2, "props": 3}
 
 # 分頁資訊
 _META_RE = re.compile(r'\{"total":\s*(\d+),\s*"currentPage":\s*\d+,\s*"limit":\s*(\d+)')
@@ -108,9 +123,104 @@ def flight_payload(html: str) -> str:
   return "".join(parts)
 
 
+# 列首：`<列號>:`；文字列的長度標記：`T<十六進位位元組數>,`
+_ROW_HEAD_RE = re.compile(rb"([0-9a-f]+):")
+_TEXT_LEN_RE = re.compile(rb"T([0-9a-f]+),")
+
+
+class _FlightRows:
+  """把 flight payload 切成列，被參照到的列才解 JSON。
+
+  列的框架照 React Flight 的規則走，**不能用「每行一列」去切**：
+  一般列（JSON、`I[…]` 匯入、`HL[…]` 提示…）以換行收尾，但 `T` 文字列是
+  `T<十六進位位元組數>,<原文>`，靠長度收尾、原文裡可以有換行、結尾也沒有換行，
+  下一列會直接黏在原文後面（實際踩到：列 62 黏在「…住宿稅」後面）。
+  長度算的是 UTF-8 位元組，所以整段在 bytes 上切。
+  """
+
+  def __init__(self, flight: str) -> None:
+    self._raw: dict[str, bytes | str] = {}
+    self._rows: dict[str, Any] = {}
+    self._index(flight.encode("utf-8"))
+
+  def _index(self, data: bytes) -> None:
+    pos, size = 0, len(data)
+    while pos < size:
+      head = _ROW_HEAD_RE.match(data, pos)
+      if not head:
+        # 不是列首（空行或殘缺片段）：跳到下一行
+        newline = data.find(b"\n", pos)
+        pos = size if newline < 0 else newline + 1
+        continue
+      row_id, pos = head.group(1).decode(), head.end()
+
+      text = _TEXT_LEN_RE.match(data, pos)
+      if text:
+        length = int(text.group(1), 16)
+        body_start = text.end()
+        self._raw[row_id] = data[body_start : body_start + length].decode("utf-8", "replace")
+        pos = body_start + length
+        continue
+
+      end = data.find(b"\n", pos)
+      end = size if end < 0 else end
+      self._raw[row_id] = data[pos:end]
+      pos = end + 1
+
+  def get(self, row_id: str) -> Any:
+    if row_id not in self._rows:
+      raw = self._raw[row_id]  # 沒有這一列 -> KeyError，由呼叫端轉成 ParseError
+      self._rows[row_id] = raw if isinstance(raw, str) else json.loads(raw)
+    return self._rows[row_id]
+
+
+def _walk(value: Any, path: str) -> Any:
+  """沿著參照路徑往下走。元件陣列用 type／key／props 指索引，其餘照字典鍵或陣列索引。"""
+  for segment in path.split(":") if path else []:
+    if isinstance(value, list):
+      if value and value[0] == "$" and segment in _ELEMENT_SLOTS:
+        value = value[_ELEMENT_SLOTS[segment]]
+      else:
+        value = value[int(segment)]
+    else:
+      value = value[segment]
+  return value
+
+
+def resolve_refs(value: Any, rows: _FlightRows, depth: int = 0) -> Any:
+  """把物件裡所有 `$列:路徑` 參照字串換成本體（遞迴，含本體裡的參照）。
+
+  解不開就拋 ParseError：參照一定指向同一份 payload 裡的東西，
+  指不到只可能是格式變了。留著字串不管的話，下游會用
+  `'str' object has no attribute 'get'` 之類的錯誤炸掉，看不出原因。
+  """
+  if depth > _MAX_REF_DEPTH:
+    raise ParseError("asiayo RSC 參照層數過深（可能有環）——版面可能已改版")
+
+  if isinstance(value, dict):
+    return {k: resolve_refs(v, rows, depth) for k, v in value.items()}
+  if isinstance(value, list):
+    return [resolve_refs(v, rows, depth) for v in value]
+  if not isinstance(value, str):
+    return value
+
+  match = _REF_RE.match(value)
+  if not match:
+    return value
+  row_id, path = match.group(1), match.group(2) or ""
+  try:
+    target = _walk(rows.get(row_id), path)
+  except (KeyError, IndexError, TypeError, ValueError) as exc:
+    raise ParseError(
+      f"asiayo RSC 參照無法解析：{value}（{type(exc).__name__}: {exc}）——版面可能已改版"
+    ) from exc
+  return resolve_refs(target, rows, depth + 1)
+
+
 def extract_items(html: str) -> list[dict[str, Any]]:
-  """從頁面抽出所有航程商品物件。"""
+  """從頁面抽出所有航程商品物件（參照已解開）。"""
   flight = flight_payload(html)
+  rows = _FlightRows(flight)
   items: list[dict[str, Any]] = []
   for match in _ITEM_RE.finditer(flight):
     start = flight.index("{", match.start())
@@ -119,7 +229,7 @@ def extract_items(html: str) -> list[dict[str, Any]]:
     except ValueError:
       continue
     if isinstance(obj, dict) and obj.get("id") is not None:
-      items.append(obj)
+      items.append(resolve_refs(obj, rows))
   return items
 
 

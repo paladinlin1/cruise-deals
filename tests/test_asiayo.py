@@ -2,13 +2,16 @@
 
 跑在真實存下來的頁面上（`tests/fixtures/asiayo_*.html`），不需要網路。
 
-這一站最容易踩的兩個地雷，都各有專屬測試：
+這一站最容易踩的三個地雷，都各有專屬測試：
   1. 同一筆商品有多個出發日，價格是「區間最低價」不是逐日價
   2. TYO 把東京與橫濱併成一個港，要靠行程第一天的敘述才分得出來
+  3. RSC payload 會把重複物件寫成 `$5f:props:…` 參照字串，
+     哪一份是本體、哪一份是參照，順序會變（2026-09-16 實際翻過一次）
 """
 
 from __future__ import annotations
 
+import json
 from datetime import date
 from decimal import Decimal
 from pathlib import Path
@@ -41,6 +44,24 @@ def tokyo_html() -> str:
 @pytest.fixture(scope="module")
 def empty_html() -> str:
   return load("asiayo_empty.html")
+
+
+@pytest.fixture(scope="module")
+def refs_html() -> str:
+  """2026-09-16 的基隆頁：卡片上的 port／journey／availableDates 全是參照字串。"""
+  return load("asiayo_keelung_refs.html")
+
+
+@pytest.fixture(scope="module")
+def textrow_html() -> str:
+  """2026-09-16 的東京頁：被參照的列 62 黏在一個沒有換行結尾的 T 文字列後面。"""
+  return load("asiayo_tokyo_textrow.html")
+
+
+def flight_html(*rows: str) -> str:
+  """把幾列 RSC flight 包成最小可解析的頁面，用來做合成案例。"""
+  payload = json.dumps("\n".join(rows) + "\n", ensure_ascii=False)
+  return f"<html><body><script>self.__next_f.push([1,{payload}])</script></body></html>"
 
 
 def deals_of(html: str):
@@ -76,6 +97,100 @@ class TestPayloadExtraction:
 
   def test_missing_payload_yields_nothing_rather_than_crashing(self):
     assert asiayo.extract_items("<html><body>nothing here</body></html>") == []
+
+
+class TestFlightReferences:
+  """React Flight 去重：同一物件第二次出現只剩 `$<列>:<路徑>` 字串。
+
+  8/17 的頁面是卡片先輸出本體、GA 追蹤事件裡放參照；9/16 對調過來，
+  卡片上的 port／journey／availableDates 變成指向 GA 事件那一列的參照，
+  直接讀就會 `'str' object has no attribute 'get'`。
+  """
+
+  def test_card_fields_are_resolved_to_the_referenced_objects(self, refs_html):
+    (item,) = asiayo.extract_items(refs_html)
+    assert item["port"] == {"id": "KEE", "name": "基隆"}
+    assert item["availableDates"] == ["2026-09-20"]
+    assert item["journey"]["daily"][0]["description"].startswith("第一天：基隆港")
+
+  def test_resolved_page_parses_into_deals(self, refs_html):
+    (deal,) = asiayo.parse_items(
+      asiayo.extract_items(refs_html), date(2026, 9, 16), date(2026, 9, 20)
+    )
+    assert deal.sail_date == date(2026, 9, 20)
+    assert deal.depart_port == "Keelung"
+    assert deal.ship_name == "Star Voyager"
+    assert deal.nights == 3
+    assert deal.price == Decimal("14000")
+    assert deal.ports_of_call == ("基隆港", "沖繩・那霸 NCT", "石垣島", "基隆港")
+
+  def test_props_segment_maps_to_the_react_element_tuple(self):
+    # 元件在 payload 裡是 ["$", type, key, props]，路徑裡的 "props" 對應索引 3；
+    # 參照可以指到另一列的任意深度，含陣列索引
+    html = flight_html(
+      '5d:["$","$L68","cruise-1",{"item":{"id":1,"name":"【麗星郵輪探索星號】測試",'
+      '"port":"$5f:props:events:1:properties:bnbs:0:port"}}]',
+      '5f:["$","$L67",null,{"events":[{"type":"ga-custom"},'
+      '{"properties":{"bnbs":[{"id":1,"port":{"id":"KEE","name":"基隆"}}]}}]}]',
+    )
+    (item,) = asiayo.extract_items(html)
+    assert item["port"] == {"id": "KEE", "name": "基隆"}
+
+  def test_references_inside_a_resolved_object_are_resolved_too(self):
+    # 本體裡的欄位也可能再指向第三列
+    html = flight_html(
+      '5d:["$","$L68","cruise-1",{"item":{"id":1,"name":"測試",'
+      '"journey":"$5f:props:bnbs:0:journey"}}]',
+      '5f:["$","$L67",null,{"bnbs":[{"id":1,"journey":{"daily":"$60:props:daily"}}]}]',
+      '60:["$","$L69",null,{"daily":[{"description":"第一天：基隆港"}]}]',
+    )
+    (item,) = asiayo.extract_items(html)
+    assert item["journey"] == {"daily": [{"description": "第一天：基隆港"}]}
+
+  def test_row_glued_to_a_text_row_is_still_found(self, textrow_html):
+    # T 文字列是「T<十六進位位元組長度>,<原文>」，靠長度而不是換行收尾，
+    # 所以下一列會緊接在原文後面、不在行首。用 ^列號: 去找就找不到。
+    items = asiayo.extract_items(textrow_html)
+    assert len(items) == 7
+    assert all(isinstance(item["port"], dict) for item in items)
+
+  def test_text_row_length_is_counted_in_bytes(self):
+    text = "⑤ 需於飯店現場支付住宿稅\n第二行"
+    html = flight_html(
+      '5d:["$","$L68","cruise-1",{"item":{"id":1,"name":"測試","port":"$62:props:port"}}]',
+      f"61:T{len(text.encode('utf-8')):x},{text}" '62:["$","$L6a",null,{"port":{"id":"TYO"}}]',
+    )
+    (item,) = asiayo.extract_items(html)
+    assert item["port"] == {"id": "TYO"}
+
+  def test_reference_to_a_text_row_yields_the_text(self):
+    # 長字串會被拉出去變成 T 列，原地只留 "$61"
+    text = "第一天：基隆港【郵輪20:00啟航】"
+    html = flight_html(
+      '5d:["$","$L68","cruise-1",{"item":{"id":1,"name":"測試","note":"$61"}}]',
+      f"61:T{len(text.encode('utf-8')):x},{text}",
+    )
+    (item,) = asiayo.extract_items(html)
+    assert item["note"] == text
+
+  def test_non_reference_dollar_strings_are_left_alone(self):
+    # "$undefined"、"$L…" 之類是 Flight 的其他型別標記，不是列參照
+    html = flight_html(
+      '5d:["$","$L68","cruise-1",{"item":{"id":1,"name":"測試",'
+      '"route":"$undefined","lazy":"$L5"}}]',
+    )
+    (item,) = asiayo.extract_items(html)
+    assert item["route"] == "$undefined"
+    assert item["lazy"] == "$L5"
+
+  def test_dangling_reference_fails_loudly(self):
+    # 指到不存在的列＝格式變了；安靜留著字串會讓下游用奇怪的錯誤炸掉
+    html = flight_html(
+      '5d:["$","$L68","cruise-1",{"item":{"id":1,"name":"測試",'
+      '"port":"$7a:props:port"}}]',
+    )
+    with pytest.raises(ParseError, match=r"\$7a:props:port"):
+      asiayo.extract_items(html)
 
 
 class TestParsing:
