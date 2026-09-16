@@ -29,7 +29,7 @@ import re
 from datetime import date, datetime, time, timedelta, timezone
 from decimal import Decimal
 from pathlib import Path
-from urllib.parse import quote
+from urllib.parse import quote, urljoin
 
 from selectolax.parser import HTMLParser, Node
 
@@ -44,6 +44,9 @@ SOURCE = "cruisedirect"
 BASE = "https://www.cruisedirect.com"
 # 用完整搜尋端點，不要用 /cruises/last-minute-cruises（策展子集合，查不到基隆）
 SEARCH_PATH = "/search-results"
+
+# 每個城市最多翻幾頁；一頁 5 張卡片，一個月窗口內不可能超過這個數
+MAX_PAGES = 10
 
 # 實測取得的 facet id
 DEPARTURE_CITY_IDS: dict[str, int] = {
@@ -60,6 +63,7 @@ CRUISELINE_NAMES: dict[str, str] = {
   "royalcaribbean": "Royal Caribbean International",
   "carnival": "Carnival Cruise Line",
   "norwegian": "Norwegian Cruise Line",
+  "ncl": "Norwegian Cruise Line",
   "msc": "MSC Cruises",
   "costa": "Costa Cruises",
   "holland": "Holland America Line",
@@ -76,11 +80,12 @@ CRUISELINE_NAMES: dict[str, str] = {
   "explora": "Explora Journeys",
 }
 
-# 挑戰頁的特徵：標題與 DOM 標記各自都足以判定
+# 挑戰頁的特徵：標題與 DOM 標記各自都足以判定。
+# `challenges.cloudflare.com` 與 `cf-chl` **不能**放進來：2026-09-16 起該站在正常的
+# 結果頁自己嵌了 Turnstile（#turnstile-analytics-container），這兩個字串每一頁都有，
+# 當成攔截標記會把三個城市全判成「挑戰未解除」。`_cf_chl_opt` 只有挑戰頁本身才有。
 _BLOCKED_TITLES = ("just a moment", "attention required", "access denied")
 _BLOCKED_MARKERS = (
-  "challenges.cloudflare.com",
-  "cf-chl",
   "_cf_chl_opt",
   "Performing security verification",
 )
@@ -104,6 +109,18 @@ def matched_count(html: str) -> int | None:
     if match:
       return int(match.group(1).replace(",", ""))
   return None
+
+
+def next_page_url(html: str) -> str | None:
+  """讀出 pager 的「下一頁」連結（絕對網址）；沒有下一頁回 None。
+
+  一頁只放 5 張卡片，超過就分頁（Drupal 的 `?…&page=1`，第一頁沒有 page 參數）。
+  只讀第一頁會安靜地漏掉後面的航次——東京 9 筆就只拿到 5 筆。
+  """
+  link = HTMLParser(html).css_first("li.pager__item--next a[href]")
+  if link is None:
+    return None
+  return urljoin(f"{BASE}{SEARCH_PATH}", link.attributes.get("href") or "")
 
 
 def is_blocked(html: str, title: str = "") -> bool:
@@ -353,6 +370,44 @@ def parse_or_save(
     raise type(exc)(f"{exc}（現場已存到 {saved}）") from exc
 
 
+def _keep_cheaper(collected: dict[tuple, Deal], deal: Deal) -> None:
+  """同一航次出現多張卡片時只留最便宜的一筆。
+
+  實際遇過：東京 9/23 Celebrity Millennium 有兩張卡片（4,687 與 7,661 USD），
+  去重鍵相同，「後者蓋前者」會留下貴的那筆。
+  """
+  existing = collected.get(deal.dedup_key)
+  if existing is None:
+    collected[deal.dedup_key] = deal
+    return
+  if deal.price is not None and (existing.price is None or deal.price < existing.price):
+    collected[deal.dedup_key] = deal
+
+
+def _load_page(sb, url: str, city_name: str, wait_s: int) -> tuple[str, str]:
+  """開一頁並回傳 (html, title)；卡在 Turnstile 核取方塊時試著點掉它再等一次。"""
+  sb.activate_cdp_mode(url)
+  sb.sleep(wait_s)
+  html = sb.get_page_source()
+  title = sb.get_title()
+
+  # 資料中心 IP（如 GitHub Actions）上，Cloudflare 常從自動放行
+  # 升級成需要點擊的 Turnstile 核取方塊。試著點掉它再等一次。
+  if is_blocked(html, title):
+    # CDP 模式下要用 sb.cdp.click_captcha()；
+    # sb.uc_gui_click_captcha() 是 UC 模式的 API，在這裡會 AttributeError。
+    log.info("cruisedirect %s 仍在挑戰頁，嘗試點擊 Turnstile", city_name)
+    try:
+      sb.cdp.click_captcha()
+    except Exception as exc:  # noqa: BLE001 - 沒有可點的元素也算正常
+      log.info("點擊 Turnstile 未成功（%s: %s）", type(exc).__name__, exc)
+    sb.sleep(wait_s)
+    html = sb.get_page_source()
+    title = sb.get_title()
+
+  return html, title
+
+
 def scrape(
   start: date | None = None,
   lookahead_days: int = config.LOOKAHEAD_DAYS,
@@ -385,36 +440,26 @@ def scrape(
 
   with SB(uc=True, xvfb=use_xvfb, locale="en", proxy=proxy) as sb:
     for city_name, city_id in DEPARTURE_CITY_IDS.items():
-      url = build_search_url(city_id, start, end)
+      url: str | None = build_search_url(city_id, start, end)
       try:
-        sb.activate_cdp_mode(url)
-        sb.sleep(wait_s)
-        html = sb.get_page_source()
-        title = sb.get_title()
+        city_count = 0
+        # 一頁只有 5 張卡片，超過就要沿著 pager 往下翻；上限防止 pager 成環
+        for page_no in range(MAX_PAGES):
+          if url is None:
+            break
+          html, title = _load_page(sb, url, city_name, wait_s)
 
-        # 資料中心 IP（如 GitHub Actions）上，Cloudflare 常從自動放行
-        # 升級成需要點擊的 Turnstile 核取方塊。試著點掉它再等一次。
-        if is_blocked(html, title):
-          # CDP 模式下要用 sb.cdp.click_captcha()；
-          # sb.uc_gui_click_captcha() 是 UC 模式的 API，在這裡會 AttributeError。
-          log.info("cruisedirect %s 仍在挑戰頁，嘗試點擊 Turnstile", city_name)
-          try:
-            sb.cdp.click_captcha()
-          except Exception as exc:  # noqa: BLE001 - 沒有可點的元素也算正常
-            log.info("點擊 Turnstile 未成功（%s: %s）", type(exc).__name__, exc)
-          sb.sleep(wait_s)
-          html = sb.get_page_source()
-          title = sb.get_title()
+          if is_blocked(html, title):
+            _save_debug(sb, city_name, html)
+            failures.append(f"{city_name}: 挑戰未解除" + (f"（第 {page_no + 1} 頁）" if page_no else ""))
+            break
 
-        if is_blocked(html, title):
-          _save_debug(sb, city_name, html)
-          failures.append(f"{city_name}: 挑戰未解除")
-          continue
-
-        page_deals = parse_or_save(sb, city_name, html, title, start, end)
-        for deal in page_deals:
-          collected[deal.dedup_key] = deal
-        log.info("cruisedirect %s：%d 筆", city_name, len(page_deals))
+          page_deals = parse_or_save(sb, city_name, html, title, start, end)
+          for deal in page_deals:
+            _keep_cheaper(collected, deal)
+          city_count += len(page_deals)
+          url = next_page_url(html)
+        log.info("cruisedirect %s：%d 筆", city_name, city_count)
       except ParseError as exc:
         # 單一城市解析失敗不該中斷其他城市：只有那一頁改版、或那個港口
         # 當天掛零，不代表另外兩個港口也拿不到資料。

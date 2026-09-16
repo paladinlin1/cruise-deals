@@ -164,7 +164,17 @@ ssh-keyscan -p 2222 你的DDNS網域 2>$null | gh secret set ROUTER_KNOWN_HOSTS
 ### asiayo 的存取方式
 
 伺服器渲染，`httpx` 直接抓即可。資料在 Next.js App Router 的 RSC flight
-payload（`self.__next_f.push([1,"…"])`）裡，串接後可以切出乾淨的 JSON 物件。
+payload（`self.__next_f.push([1,"…"])`）裡，串接後可以切出 JSON 物件。
+
+但**不是每個欄位都是本體**：React Flight 會把同一份 payload 裡重複出現的物件
+去重成 `"$5f:props:events:1:properties:bnbs:0:port"` 這種參照字串
+（`$列號:路徑`），哪一份是本體取決於元件輸出順序——8/17 是卡片先出、GA 追蹤
+事件放參照，9/16 對調過來，卡片上的 `port`／`journey`／`availableDates`
+全變成參照。所以抽出物件後要先解參照，兩種順序才都吃得下。
+
+解參照時列的切法要照 React Flight 的框架走，**不能用「每行一列」**：
+`T` 文字列是 `T<十六進位位元組數>,<原文>`，靠長度收尾、原文可含換行、
+結尾沒有換行，下一列會直接黏在原文後面（列 62 就黏在「…住宿稅」後面）。
 
 **價格是「查詢區間內所有出發日的最低價」，不是逐日價格**——同一筆行程查
 一個月的窗口顯示 18,000，把窗口縮到只含 8/23 那一天卻是 21,583。
@@ -289,7 +299,7 @@ python -m cruise_deals --fx-rate 31.97                   # 指定匯率，不連
 ## 測試
 
 ```bash
-pytest -q          # 387 個測試，約 4 秒
+pytest -q          # 406 個測試，約 5 秒
 ```
 
 測試全部跑在存下來的**真實**回應上（`tests/fixtures/`），不需要網路。
@@ -394,3 +404,18 @@ scripts/
   連抓都沒被抓到**。現在改讀頁面自己的 `<h2 class="view-header">N Cruises</h2>`：
   宣稱 0 筆就回空清單，宣稱 N 筆卻解析不出來才算改版；單一城市失敗也只記進
   `failures`，不再中斷其他城市。
+- **正常頁面裡也會有 Cloudflare 的字串**。2026-09-16 起 cruisedirect 在結果頁自己嵌了
+  Turnstile（`#turnstile-analytics-container`，載入 `challenges.cloudflare.com/turnstile/…`，
+  基隆頁連 `cf-chl-widget-*` iframe 都渲染出來了）。原本 `is_blocked()` 把
+  `challenges.cloudflare.com` 與 `cf-chl` 當攔截標記，於是三個城市明明都通過了挑戰、
+  標題也是「Cruise Search Results」，卻全被判成「挑戰未解除」。攔截標記現在只留
+  挑戰頁本身才有的 `_cf_chl_opt` 與「Performing security verification」，加上標題判斷。
+- **cruisedirect 一頁只放 5 張卡片**，超過就有 `li.pager__item--next`（`&page=1`）。
+  舊 fixture 最多 3 筆，分頁從沒被走到；東京宣稱 9 筆時只拿到 5 筆，剩下 4 筆
+  **安靜地**漏掉。現在沿著 pager 翻到底（`MAX_PAGES` 防成環）。
+- **同一航次可能有兩張卡片**（東京 9/23 Celebrity Millennium：4,687 與 7,661 USD），
+  去重鍵相同時「後者蓋前者」會留下貴的那筆。cruisedirect 現在跟 asiayo 一樣只留最便宜的。
+- **asiayo 的 RSC 參照字串**（見〈asiayo 的存取方式〉）：卡片上的 `port` 從物件變成
+  `"$5f:props:…"`，解析器在 `_resolve_port` 用 `'str' object has no attribute 'get'`
+  炸掉。`page_meta` 仍正常，「宣稱 N 筆卻解析 0 筆」那道防線抓不到這種壞法——
+  它數的是物件數，物件有、只是欄位是字串。

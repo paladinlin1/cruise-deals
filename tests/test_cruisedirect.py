@@ -9,6 +9,7 @@
 
 from __future__ import annotations
 
+import re
 from datetime import date
 from decimal import Decimal
 from pathlib import Path
@@ -47,6 +48,45 @@ class TestChallengeDetection:
   def test_empty_page_is_not_flagged_as_blocked(self):
     # 空頁面是別的問題（版面改版），不該誤報成被擋
     assert cruisedirect.is_blocked("", "CruiseDirect") is False
+
+
+@pytest.fixture(scope="module")
+def tokyo_turnstile_html() -> str:
+  """2026-09-16 的東京結果頁：正常頁面，但自己嵌了 Turnstile 的 script。"""
+  return (FIXTURES / "cruisedirect_tokyo_turnstile.html").read_text(encoding="utf-8")
+
+
+@pytest.fixture(scope="module")
+def zero_results_turnstile_html() -> str:
+  """2026-09-16 的基隆結果頁：0 筆，而且 Turnstile 的 cf-chl-widget iframe 已經渲染出來。"""
+  return (FIXTURES / "cruisedirect_zero_results_turnstile.html").read_text(encoding="utf-8")
+
+
+RESULTS_TITLE = "Cruise Search Results | Find Cruises on CruiseDirect.com"
+
+
+class TestEmbeddedTurnstileIsNotAChallenge:
+  """2026-09-16 起該站在**正常頁面**自己嵌了 Turnstile（#turnstile-analytics-container）。
+
+  從此 `challenges.cloudflare.com` 的 script 與 `cf-chl-widget-*` iframe 每一頁都有，
+  不能再當成攔截頁的特徵——三個城市明明都進去了，卻被判成「挑戰未解除」。
+  真正的挑戰頁靠標題「Just a moment...」與 `_cf_chl_opt` 就分得出來。
+  """
+
+  def test_results_page_with_turnstile_script_is_not_blocked(self, tokyo_turnstile_html):
+    assert cruisedirect.is_blocked(tokyo_turnstile_html, RESULTS_TITLE) is False
+
+  def test_zero_results_page_with_rendered_widget_is_not_blocked(
+    self, zero_results_turnstile_html
+  ):
+    assert cruisedirect.is_blocked(zero_results_turnstile_html, RESULTS_TITLE) is False
+
+  def test_results_page_with_turnstile_still_parses(self, tokyo_turnstile_html):
+    deals = cruisedirect.parse_search_page(tokyo_turnstile_html, RESULTS_TITLE)
+    assert len(deals) == 5
+
+  def test_zero_results_page_with_widget_is_genuinely_empty(self, zero_results_turnstile_html):
+    assert cruisedirect.parse_search_page(zero_results_turnstile_html, RESULTS_TITLE) == []
 
 
 class TestParseSearchPage:
@@ -516,6 +556,7 @@ class FakeBrowser:
     self.pages = pages
     self.title = title
     self.url = ""
+    self.visited: list[str] = []
     self.screenshots: list[str] = []
     self.cdp = SimpleNamespace(click_captcha=lambda: None)
 
@@ -527,6 +568,7 @@ class FakeBrowser:
 
   def activate_cdp_mode(self, url: str) -> None:
     self.url = url
+    self.visited.append(url)
 
   def sleep(self, _seconds) -> None:
     pass
@@ -534,7 +576,12 @@ class FakeBrowser:
   def get_page_source(self) -> str:
     for city, city_id in cruisedirect.DEPARTURE_CITY_IDS.items():
       if str(city_id) in self.url:
-        return self.pages[city]
+        pages = self.pages[city]
+        if isinstance(pages, str):
+          return pages
+        # 準備了多頁：依網址上的 page=N 取（該站第一頁沒有 page 參數，第二頁是 page=1）
+        match = re.search(r"[?&]page=(\d+)", self.url)
+        return pages[int(match.group(1)) if match else 0]
     raise AssertionError(f"沒有為這個網址準備頁面：{self.url}")
 
   def get_title(self) -> str:
@@ -636,3 +683,85 @@ class TestScrapeIsResilientPerCity:
 
     with pytest.raises(BlockedError):
       self._scrape()
+
+
+class TestPagination:
+  """一頁只放 5 張卡片；超過就有 pager。只讀第一頁會**安靜地**漏掉後面的航次。
+
+  2026-09-16 東京頁宣稱 9 Cruises，第一頁只有 5 張卡片，`li.pager__item--next`
+  指向 `…&page=1`。舊 fixture 最多 3 筆，所以這條路從來沒被走過。
+  """
+
+  def test_reads_the_next_link_from_the_pager(self, tokyo_turnstile_html):
+    url = cruisedirect.next_page_url(tokyo_turnstile_html)
+    assert url is not None
+    assert url.startswith("https://www.cruisedirect.com/search-results?")
+    assert url.endswith("&page=1")
+
+  def test_page_without_a_pager_has_no_next(self, yokohama_html):
+    assert cruisedirect.next_page_url(yokohama_html) is None
+
+  def test_scrape_follows_the_pager(
+    self, fake_browser, tokyo_turnstile_html, yokohama_html, zero_results_html
+  ):
+    # 東京第一頁有 pager 指向 page=1；第二頁借用橫濱 fixture（沒有 pager，走到底）
+    browser = fake_browser({
+      "Keelung": zero_results_html,
+      "Tokyo": [tokyo_turnstile_html, yokohama_html],
+      "Yokohama": zero_results_html,
+    })
+
+    # 窗口要同時蓋住兩份 fixture 的出發日（8 月與 9–10 月）
+    window = dict(start=date(2026, 8, 13), lookahead_days=60)
+    deals = cruisedirect.scrape(**window, wait_s=0)
+
+    assert any("page=1" in url for url in browser.visited)
+    expected = {
+      d.dedup_key
+      for html in (tokyo_turnstile_html, yokohama_html)
+      for d in cruisedirect.parse_search_page(
+        html, RESULTS_TITLE, window["start"], date(2026, 10, 12)
+      )
+    }
+    assert {d.dedup_key for d in deals} == expected
+    assert len(expected) > 5  # 第二頁的航次真的有進來
+
+  def test_scrape_stops_when_there_is_no_next_link(
+    self, fake_browser, yokohama_html, zero_results_html
+  ):
+    browser = fake_browser({
+      "Keelung": zero_results_html,
+      "Tokyo": zero_results_html,
+      "Yokohama": yokohama_html,
+    })
+
+    cruisedirect.scrape(start=date(2026, 8, 13), lookahead_days=30, wait_s=0)
+
+    assert not any("page=" in url for url in browser.visited)
+
+
+class TestTokyoTurnstilePage:
+  """2026-09-16 的東京頁多了兩個舊 fixture 沒有的情況。"""
+
+  def test_ncl_logo_resolves_to_norwegian_cruise_line(self, tokyo_turnstile_html):
+    # logo 的 alt 是 "ncl"，不補對照就會輸出成「Ncl」，跟 icruise 的寫法對不上
+    deals = cruisedirect.parse_search_page(tokyo_turnstile_html, RESULTS_TITLE)
+    jade = next(d for d in deals if d.ship_name == "Norwegian Jade")
+    assert jade.cruise_line == "Norwegian Cruise Line"
+
+  def test_same_sailing_listed_twice_keeps_the_cheaper_one(
+    self, fake_browser, tokyo_turnstile_html, zero_results_html
+  ):
+    # 9/23 Celebrity Millennium 有兩張卡片（4,687 與 7,661 USD），去重鍵相同；
+    # 「後者蓋前者」會留下貴的那筆
+    fake_browser({
+      "Keelung": zero_results_html,
+      "Tokyo": tokyo_turnstile_html,
+      "Yokohama": zero_results_html,
+    })
+
+    deals = cruisedirect.scrape(start=date(2026, 9, 16), lookahead_days=30, wait_s=0)
+
+    millennium = [d for d in deals if d.sail_date == date(2026, 9, 23)]
+    assert len(millennium) == 1
+    assert millennium[0].price == Decimal("4687")
