@@ -62,9 +62,9 @@ jobs:
 
       - name: 建立 SSH SOCKS5 通道
         # cruisedirect 的 Cloudflare 對資料中心 IP 會出人工勾選框（實測點了也不過），
-        # 易遊網的 Incapsula 則會在第二個請求把連線掛斷；住宅 IP 都自動放行。
-        # 把這兩個來源的流量導過家用路由器即可。
-        # 沒設定 ROUTER_* secrets 時整步跳過，兩者就直連並如常降級。
+        # 易遊網的 Incapsula 會在第二個請求把連線掛斷，icruise 則回自家的
+        # 「creating your account」錯誤頁；住宅 IP 都正常。把這三個來源導過家用路由器。
+        # 沒設定 ROUTER_* secrets 時整步跳過，三者就直連並如常降級。
         id: tunnel
         if: env.ROUTER_HOST != ''
         continue-on-error: true
@@ -98,6 +98,7 @@ jobs:
           echo "通道對外 IP: $(echo "$EXIT_IP" | cut -d. -f1-2).x.x"
           echo "CRUISEDIRECT_PROXY=socks5h://127.0.0.1:1080" >> "$GITHUB_ENV"
           echo "EZTRAVEL_PROXY=socks5h://127.0.0.1:1080" >> "$GITHUB_ENV"
+          echo "ICRUISE_PROXY=socks5h://127.0.0.1:1080" >> "$GITHUB_ENV"
 
       - name: 擷取
         id: scrape

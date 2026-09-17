@@ -197,6 +197,27 @@ class TestErrorPageRetry:
     assert str(saved) in str(info.value)
 
 
+class TestProxy:
+  """GitHub Actions 的 IP 連續三次都拿到「creating your account」錯誤頁（本機正常），
+  是 IP 被對方拒絕，不是暫時性錯誤；比照 cruisedirect／eztravel 走家用路由器的通道。"""
+
+  def test_direct_connection_when_env_not_set(self, monkeypatch):
+    monkeypatch.delenv("ICRUISE_PROXY", raising=False)
+    assert "proxy" not in icruise.client_options()
+
+  def test_tunnel_is_passed_to_httpx(self, monkeypatch):
+    monkeypatch.setenv("ICRUISE_PROXY", "socks5h://127.0.0.1:1080")
+    options = icruise.client_options()
+    assert options["proxy"] == "socks5://127.0.0.1:1080"
+    assert options["headers"]["User-Agent"]  # 其餘設定不受影響
+
+  def test_socks_support_is_installed(self):
+    # httpx 的 SOCKS 支援是選配（socksio），沒裝會在 CI 建立 client 時才炸
+    import httpx
+
+    httpx.Client(proxy="socks5://127.0.0.1:1080").close()
+
+
 class TestDebugSnapshot:
   def test_unrecognised_page_is_saved_for_diagnosis(self, tmp_path, monkeypatch):
     # CI 會把 debug/ 當成 artifact 上傳；沒有現場就永遠不知道對方回了什麼

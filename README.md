@@ -63,9 +63,9 @@
 這是 IP 信譽評分造成的，不是程式寫法問題。解法是讓流量從住宅 IP 出去：
 在 GitHub Actions 裡透過 SSH 連到家用路由器開一條 SOCKS5 通道。
 
-只有 cruisedirect（`CRUISEDIRECT_PROXY`）與易遊網（`EZTRAVEL_PROXY`）走這條通道，
-其餘來源照舊直連，不佔用家用頻寬。
-沒設定 `ROUTER_*` secrets 時整個步驟會跳過，兩者直連並如常降級。
+只有 cruisedirect（`CRUISEDIRECT_PROXY`）、易遊網（`EZTRAVEL_PROXY`）與
+icruise（`ICRUISE_PROXY`）走這條通道，其餘來源照舊直連，不佔用家用頻寬。
+沒設定 `ROUTER_*` secrets 時整個步驟會跳過，三者直連並如常降級。
 
 ##### 路由器端設定
 
@@ -442,8 +442,10 @@ scripts/
   （「Oh no! There seems to be a problem… creating your account」，2026-09-11 起
   隔三差五 0 筆，本機同一時間 30 筆）。頁面要分三種：有結果表、真正的
   「No results found」、兩者都不是——第三種以前被當成 0 筆，把前一天的資料整批
-  洗掉。現在第三種先重試（重送通常就好），重試用完才拋 ParseError（沿用前次資料）
-  並把現場存進 `debug/` 供 artifact 診斷。
+  洗掉。現在第三種先重試，重試用完才拋 ParseError（沿用前次資料）並把現場存進
+  `debug/` 供 artifact 診斷。實測（2026-09-17）CI 上三次都拿到同一頁、本機正常，
+  是對方拒絕資料中心 IP 而不是暫時性錯誤，所以 icruise 也走 `ICRUISE_PROXY` 的通道
+  （httpx 走 SOCKS 需要 `httpx[socks]`）。
 - **Expedia 那個網址不回 JSON**，只是 12KB 的 SPA 空殼。真資料在
   `POST /nitroapi/v2/cruise`，需要 `uniquetid` 授權標頭（由頁面 JS 動態產生）。
   解法：用瀏覽器載入頁面、攔下 SPA 自己的請求標頭再沿用。

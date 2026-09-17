@@ -21,14 +21,14 @@ import re
 import time
 from datetime import date, timedelta
 from pathlib import Path
-from typing import TYPE_CHECKING, Literal, TypeVar
+from typing import TYPE_CHECKING, Any, Literal, TypeVar
 
 import httpx
 from selectolax.parser import HTMLParser, Node
 
 from .. import config, normalize
 from ..models import Deal, utcnow
-from .base import ParseError
+from .base import ParseError, proxy_from_env
 
 if TYPE_CHECKING:  # pragma: no cover
   from collections.abc import Callable
@@ -263,6 +263,26 @@ def fetch_page(
     raise ParseError(f"{exc}{where}") from exc
 
 
+def client_options() -> dict[str, Any]:
+  """httpx.Client() 的參數。
+
+  GitHub Actions 的 IP 會連續拿到該站的「creating your account」錯誤頁（本機正常），
+  是對方拒絕該 IP 而不是暫時性錯誤；有設 ICRUISE_PROXY 就走家用路由器的 SOCKS5 通道。
+  """
+  options: dict[str, Any] = {
+    "headers": {
+      "User-Agent": config.USER_AGENT,
+      "Accept-Language": "en-US,en;q=0.9",
+    },
+    "timeout": 60.0,
+    "follow_redirects": True,
+  }
+  proxy = proxy_from_env("ICRUISE_PROXY")
+  if proxy:
+    options["proxy"] = proxy
+  return options
+
+
 def scrape(
   start: date | None = None,
   lookahead_days: int = config.LOOKAHEAD_DAYS,
@@ -274,12 +294,11 @@ def scrape(
   chunks = date_chunks(start, end, chunk_days)
 
   collected: dict[tuple, Deal] = {}
-  headers = {
-    "User-Agent": config.USER_AGENT,
-    "Accept-Language": "en-US,en;q=0.9",
-  }
+  options = client_options()
+  if "proxy" in options:
+    log.info("icruise 透過代理連線：%s", options["proxy"])
 
-  with httpx.Client(headers=headers, timeout=60.0, follow_redirects=True) as client:
+  with httpx.Client(**options) as client:
     for index, (chunk_start, chunk_end) in enumerate(chunks):
       if index:
         time.sleep(config.REQUEST_DELAY_S)  # 禮貌延遲
