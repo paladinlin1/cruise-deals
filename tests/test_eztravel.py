@@ -584,6 +584,23 @@ class TestWaitForNextData:
     assert eztravel._wait_for_next_data(page, timeout_s=0) == "<html>challenge</html>"
 
 
+class TestProxy:
+  """GitHub Actions 的資料中心 IP 過得了第一頁，第二個請求就被 Incapsula 掛斷
+  （socket hang up）；比照 cruisedirect 走家用路由器的 SOCKS5 通道。"""
+
+  def test_no_proxy_when_env_not_set(self, monkeypatch):
+    monkeypatch.delenv("EZTRAVEL_PROXY", raising=False)
+    assert eztravel.launch_options(headless=True) == {"headless": True}
+
+  def test_socks5h_tunnel_is_passed_to_chromium_as_socks5(self, monkeypatch):
+    # workflow 寫的是 curl 慣用的 socks5h，Chrome 不認得會安靜地忽略整個代理設定
+    monkeypatch.setenv("EZTRAVEL_PROXY", "socks5h://127.0.0.1:1080")
+    assert eztravel.launch_options(headless=False) == {
+      "headless": False,
+      "proxy": {"server": "socks5://127.0.0.1:1080"},
+    }
+
+
 class TestUrls:
   def test_results_url_carries_route_window_and_page_size(self):
     # 預設一頁只回 12 筆；實測 pageSize 參數有效，一次要完

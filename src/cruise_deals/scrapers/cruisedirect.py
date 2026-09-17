@@ -24,7 +24,6 @@
 from __future__ import annotations
 
 import logging
-import os
 import re
 from datetime import date, datetime, time, timedelta, timezone
 from decimal import Decimal
@@ -35,7 +34,7 @@ from selectolax.parser import HTMLParser, Node
 
 from .. import config, normalize
 from ..models import Deal, utcnow
-from .base import BlockedError, ParseError
+from .base import BlockedError, ParseError, proxy_from_env
 
 log = logging.getLogger(__name__)
 
@@ -292,34 +291,13 @@ def parse_search_page(
 
 
 # "host:port" 或 "scheme://host:port"（host 可為網域或 IP）
-_PROXY_RE = re.compile(
-  r"^(?:(?P<scheme>socks5h|socks5|socks4|https?)://)?"
-  r"(?P<host>[\w.\-]+):(?P<port>\d{1,5})$"
-)
-
-
 def proxy_setting() -> str | None:
-  """從 CRUISEDIRECT_PROXY 環境變數讀取代理設定。
+  """從 CRUISEDIRECT_PROXY 環境變數讀取代理設定（解析邏輯在 base.proxy_from_env）。
 
   GitHub Actions 的資料中心 IP 會被 Cloudflare 升級成人工勾選框（實測點了也不過），
   但家用住宅 IP 可以自動放行。把流量導過家用路由器的 SSH SOCKS5 通道即可。
-
-  未設定或格式不對時回 None（直連），不讓瀏覽器因設定錯誤而啟動失敗。
   """
-  raw = os.environ.get("CRUISEDIRECT_PROXY", "").strip()
-  if not raw:
-    return None
-  match = _PROXY_RE.match(raw)
-  if not match:
-    log.warning("CRUISEDIRECT_PROXY 格式無法辨識（%r），改用直連", raw)
-    return None
-
-  scheme = match.group("scheme") or "socks5"
-  # socks5h 是 curl 的寫法，Chrome 不認得，會**安靜地忽略整個代理設定**改走直連。
-  # Chrome 的 socks5 本來就會把網域交給代理端解析，語意相同。
-  if scheme == "socks5h":
-    scheme = "socks5"
-  return f"{scheme}://{match.group('host')}:{match.group('port')}"
+  return proxy_from_env("CRUISEDIRECT_PROXY")
 
 
 def _save_debug(sb, city_name: str, html: str) -> Path | None:

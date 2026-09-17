@@ -63,9 +63,9 @@
 這是 IP 信譽評分造成的，不是程式寫法問題。解法是讓流量從住宅 IP 出去：
 在 GitHub Actions 裡透過 SSH 連到家用路由器開一條 SOCKS5 通道。
 
-只有 cruisedirect 走這條通道（`CRUISEDIRECT_PROXY` 環境變數），
+只有 cruisedirect（`CRUISEDIRECT_PROXY`）與易遊網（`EZTRAVEL_PROXY`）走這條通道，
 其餘來源照舊直連，不佔用家用頻寬。
-沒設定 `ROUTER_*` secrets 時整個步驟會跳過，cruisedirect 直連並如常降級。
+沒設定 `ROUTER_*` secrets 時整個步驟會跳過，兩者直連並如常降級。
 
 ##### 路由器端設定
 
@@ -299,8 +299,9 @@ Next.js 網站，資料在 `<script id="__NEXT_DATA__">` 裡，是台灣站裡�
 但**「蘇澳出發，基隆返回」也被歸在基隆港分類下**，標題有「(X出發，Y返回)」時
 要再確認 X 是基隆。`fullStatus == "END"`（關團）的出發日不收，與雄獅的額滿同一原則。
 
-CI 上的 Incapsula 行為尚未驗證（實測都在住宅 IP）；若 GitHub Actions 回 `BlockedError`，
-可比照 cruisedirect 走家用路由器的 SOCKS5 通道。
+**GitHub Actions 的資料中心 IP 過得了第一頁，第二個 `page.request` 就被掛斷**
+（`socket hang up`，實測 2026-09-17；住宅 IP 完全正常）。所以比照 cruisedirect，
+`EZTRAVEL_PROXY` 有設定時整個瀏覽器走家用路由器的 SOCKS5 通道。
 
 ## 匯率與台幣比價
 

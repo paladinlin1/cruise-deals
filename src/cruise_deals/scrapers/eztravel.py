@@ -54,7 +54,7 @@ from typing import Any
 
 from .. import config, normalize
 from ..models import Deal, utcnow
-from .base import BlockedError, ParseError, keep_cheapest
+from .base import BlockedError, ParseError, keep_cheapest, proxy_from_env
 
 log = logging.getLogger(__name__)
 
@@ -400,6 +400,20 @@ def _wait_for_next_data(page, timeout_s: float = 45.0) -> str:
     page.wait_for_timeout(1000)
 
 
+def launch_options(headless: bool) -> dict[str, Any]:
+  """chromium.launch() 的參數。
+
+  GitHub Actions 的資料中心 IP 過得了第一頁（Incapsula 有發 cookie），
+  但第二個 page.request 就被掛斷（socket hang up）；住宅 IP 完全正常。
+  所以比照 cruisedirect，有設 EZTRAVEL_PROXY 就整個瀏覽器走家用路由器的 SOCKS5 通道。
+  """
+  options: dict[str, Any] = {"headless": headless}
+  proxy = proxy_from_env("EZTRAVEL_PROXY")
+  if proxy:
+    options["proxy"] = {"server": proxy}
+  return options
+
+
 def scrape(
   start: date | None = None,
   lookahead_days: int = config.LOOKAHEAD_DAYS,
@@ -412,8 +426,12 @@ def scrape(
   start = start or date.today()
   end = start + timedelta(days=lookahead_days)
 
+  options = launch_options(headless)
+  if "proxy" in options:
+    log.info("易遊網透過代理連線：%s", options["proxy"]["server"])
+
   with sync_playwright() as playwright:
-    browser = playwright.chromium.launch(headless=headless)
+    browser = playwright.chromium.launch(**options)
     try:
       page = browser.new_page(viewport={"width": 1400, "height": 950}, locale="zh-TW")
       # 第一頁用真實瀏覽器載入，讓 Incapsula 發 cookie；之後全走 page.request

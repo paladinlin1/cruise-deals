@@ -2,12 +2,48 @@
 
 from __future__ import annotations
 
+import logging
+import os
+import re
 import time
 import traceback
 from collections.abc import Callable
 from dataclasses import dataclass, field
 
 from ..models import Deal
+
+log = logging.getLogger(__name__)
+
+# 代理設定的寫法：[scheme://]host:port
+_PROXY_RE = re.compile(
+  r"^(?:(?P<scheme>socks5h|socks5|socks4|https?)://)?"
+  r"(?P<host>[\w.\-]+):(?P<port>\d{1,5})$"
+)
+
+
+def proxy_from_env(var_name: str) -> str | None:
+  """從環境變數讀取瀏覽器要走的代理，回 Chrome 認得的 "scheme://host:port"。
+
+  GitHub Actions 的資料中心 IP 會被機器人防護擋（Cloudflare 出人工勾選框、
+  Incapsula 直接掛斷連線），家用住宅 IP 則自動放行；workflow 會開一條
+  SSH SOCKS5 通道到家用路由器，各來源用自己的環境變數決定要不要走。
+
+  未設定或格式不對時回 None（直連），不讓瀏覽器因設定錯誤而啟動失敗。
+  """
+  raw = os.environ.get(var_name, "").strip()
+  if not raw:
+    return None
+  match = _PROXY_RE.match(raw)
+  if not match:
+    log.warning("%s 格式無法辨識（%r），改用直連", var_name, raw)
+    return None
+
+  scheme = match.group("scheme") or "socks5"
+  # socks5h 是 curl 的寫法，Chrome 不認得，會**安靜地忽略整個代理設定**改走直連。
+  # Chrome 的 socks5 本來就會把網域交給代理端解析，語意相同。
+  if scheme == "socks5h":
+    scheme = "socks5"
+  return f"{scheme}://{match.group('host')}:{match.group('port')}"
 
 
 class ParseError(RuntimeError):
