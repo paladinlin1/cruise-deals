@@ -196,11 +196,12 @@ class TestSorting:
     assert priced == sorted(priced, reverse=True)
     assert all("洽詢報價" in c for c in cells[len(priced):])
 
-  def test_nights_column_sorts_numerically(self, browser_page):
+  def test_days_column_sorts_numerically(self, browser_page):
     reset(browser_page)
     sort_by(browser_page, 6)
-    nights = [int(n) for n in column(browser_page, 5)]
-    assert nights == sorted(nights)  # 字串排序會把 3 排在 20 後面
+    days = [int(n) for n in column(browser_page, 5)]
+    assert days == sorted(days)  # 字串排序會把 3 排在 20 後面
+    assert min(days) >= 2  # 顯示的是天（夜＋1），最短的 1 夜行程也是 2 天
 
   def test_date_column_sorts_chronologically(self, browser_page):
     reset(browser_page)

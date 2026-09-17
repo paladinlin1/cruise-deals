@@ -403,6 +403,15 @@ class TestPersistence:
     assert len(lines) == 3  # 表頭 + 2 筆
     assert "出發日期" in lines[0]
 
+  def test_csv_travel_days_column_is_in_days(self, tmp_path):
+    import csv
+
+    path = tmp_path / "deals.csv"
+    tabular.write_csv(path, [make_deal(nights=2)])
+    with path.open(encoding="utf-8-sig", newline="") as handle:
+      row = next(iter(csv.DictReader(handle)))
+    assert row["航行天數"] == "3"
+
   def test_csv_writes_empty_string_for_missing_price(self, tmp_path):
     path = tmp_path / "deals.csv"
     tabular.write_csv(path, [make_deal(price=None)])

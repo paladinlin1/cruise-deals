@@ -267,6 +267,78 @@ class TestShipNameTooltip:
     assert "探索星號" in row
 
 
+class TestDaysColumn:
+  def test_shows_days_not_nights(self):
+    # 欄位叫「航行天數」，顯示與排序值都要是天（3 天 2 夜的行程 nights=2）
+    html = page.render([make_deal(nights=2)], report_with(ok("icruise")))
+    assert '<td data-sort="3">3</td>' in html
+    assert 'data-sort="2">2</td>' not in html
+
+
+class TestRowTooltip:
+  """滑鼠停在列上就看得到停靠港與其他重要資訊，不必點進詳情。"""
+
+  def render_row_title(self, deal) -> str:
+    html = page.render([deal], report_with(ok(deal.source)))
+    match = re.search(r'<tr [^>]*title="([^"]*)"', html)
+    assert match, "資料列上沒有 title"
+    return match.group(1).replace("&#10;", "\n").replace("&#xa;", "\n")
+
+  def test_lists_ports_of_call_and_the_route(self):
+    deal = make_deal(
+      depart_port="Keelung", arrive_port="Keelung", nights=3,
+      ports_of_call=("那霸", "石垣島"),
+    )
+    title = self.render_row_title(deal)
+    assert "停靠港：那霸 → 石垣島" in title
+    assert "航程：Keelung → Keelung，4 天 3 夜" in title
+
+  def test_sea_days_only_is_spelled_out(self):
+    assert "停靠港：海上巡遊" in self.render_row_title(make_deal(ports_of_call=()))
+
+  def test_shows_the_original_ship_name_only_when_it_differs(self):
+    chinese = make_deal(source="asiayo", ship_name="Star Voyager", ship_name_raw="探索星號")
+    assert "船名原文：探索星號" in self.render_row_title(chinese)
+    same = make_deal(ship_name="Costa Serena", ship_name_raw="Costa Serena")
+    assert "船名原文" not in self.render_row_title(same)
+
+  def test_shows_the_price_note_with_the_fx_rate(self):
+    deal = make_deal(
+      price=Decimal("479"), currency="USD", price_note="per person, double occupancy",
+      price_twd=Decimal("15313"), fx_rate=Decimal("31.97"),
+    )
+    title = self.render_row_title(deal)
+    assert "價格：per person, double occupancy（1 USD = 31.97 TWD）" in title
+
+  def test_fx_rate_is_rounded_to_two_decimals(self):
+    deal = make_deal(
+      price=Decimal("479"), currency="USD", price_twd=Decimal("15251"),
+      fx_rate=Decimal("31.840364"),
+    )
+    assert "（1 USD = 31.84 TWD）" in self.render_row_title(deal)
+
+  def test_lists_other_source_quotes(self):
+    deal = make_deal(
+      other_sources={
+        "asiayo": {"price": "8000", "currency": "TWD", "price_twd": "8000"},
+        "lion": {"price": "11000", "currency": "TWD", "price_twd": "11000"},
+      }
+    )
+    title = self.render_row_title(deal)
+    assert "其他來源：asiayo 8,000 TWD；lion 11,000 TWD" in title
+
+  def test_marks_stale_rows(self):
+    assert "資料：沿用 2026-09-15 資料" in self.render_row_title(
+      make_deal(stale_since=date(2026, 9, 15))
+    )
+    assert "資料：" not in self.render_row_title(make_deal())
+
+  def test_title_is_escaped(self):
+    deal = make_deal(ports_of_call=('<b>"那霸"</b>',))
+    html = page.render([deal], report_with(ok("icruise")))
+    assert '<b>"那霸"</b>' not in html
+
+
 class TestWarnings:
   def test_unmapped_ship_warning_is_shown(self):
     report = report_with(ok("asiayo"))

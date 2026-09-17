@@ -75,6 +75,23 @@ class TestDedupKey:
     assert make_deal().dedup_key != make_deal(depart_port="Tokyo").dedup_key
 
 
+class TestDays:
+  """使用者看到的是「天」，資料存的是「夜」；郵輪業慣例 N 夜＝N+1 天（3 天 2 夜）。"""
+
+  def test_days_is_nights_plus_one(self):
+    assert make_deal(nights=2).days == 3
+    assert make_deal(nights=0).days == 1
+
+  def test_json_carries_both_nights_and_days(self):
+    data = make_deal(nights=4).to_dict()
+    assert (data["nights"], data["days"]) == (4, 5)
+
+  def test_old_json_without_days_still_loads(self):
+    data = make_deal(nights=4).to_dict()
+    del data["days"]
+    assert Deal.from_dict(data).days == 5
+
+
 class TestSortKey:
   def test_sorts_by_sail_date_ascending(self):
     early = make_deal(sail_date=date(2026, 8, 10))

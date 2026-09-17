@@ -221,6 +221,11 @@ def _format_price(price: Decimal | None) -> str:
 _SYMBOLS = {"TWD": "NT$", "USD": "US$"}
 
 
+def _rate_text(rate: Decimal) -> str:
+  """匯率顯示到小數兩位、去掉尾端的 0：31.840364 -> 31.84、32 -> 32。"""
+  return f"{rate.quantize(Decimal('0.01')).normalize():f}"
+
+
 def _money(price: Decimal | None, currency: str) -> str:
   """把金額寫成 "NT$89,876" / "US$2,812"；無報價回「洽詢報價」。"""
   if price is None:
@@ -282,12 +287,47 @@ def _price_cell(deal: Deal) -> str:
 
   note = deal.price_note
   if deal.fx_rate is not None:
-    note = f"{note}（1 USD = {deal.fx_rate} TWD）".strip()
+    note = f"{note}（1 USD = {_rate_text(deal.fx_rate)} TWD）".strip()
 
   return (
     f'<td class="{price_class}" data-sort="{price_sort}" title="{escape(note)}">'
     f"{main}{original}{others}</td>"
   )
+
+
+def _tooltip_quote(quote: dict[str, str | None]) -> str:
+  """列 tooltip 裡的一筆其他來源報價：「8,000 TWD」，台幣為主、沒有台幣才用原幣。"""
+  raw = quote.get("price")
+  if raw is None:
+    return "洽詢報價"
+  twd = quote.get("price_twd")
+  if twd:
+    return f"{_format_price(Decimal(twd))} TWD"
+  return f"{_format_price(Decimal(raw))} {(quote.get('currency') or '').upper()}".strip()
+
+
+def _row_title(deal: Deal) -> str:
+  """整列的 tooltip（純文字、多行）：停靠港與不必點進詳情就該看到的重要資訊。"""
+  ports = " → ".join(deal.ports_of_call) if deal.ports_of_call else "海上巡遊"
+  lines = [
+    f"停靠港：{ports}",
+    f"航程：{deal.depart_port} → {deal.arrive_port}，{deal.days} 天 {deal.nights} 夜",
+  ]
+  if deal.ship_name_raw and deal.ship_name_raw != deal.ship_name:
+    lines.append(f"船名原文：{deal.ship_name_raw}")
+  if deal.price_note:
+    note = deal.price_note
+    if deal.fx_rate is not None:
+      note = f"{note}（1 USD = {_rate_text(deal.fx_rate)} TWD）"
+    lines.append(f"價格：{note}")
+  if deal.other_sources:
+    others = "；".join(
+      f"{src} {_tooltip_quote(quote)}" for src, quote in sorted(deal.other_sources.items())
+    )
+    lines.append(f"其他來源：{others}")
+  if deal.stale_since:
+    lines.append(f"資料：沿用 {deal.stale_since.isoformat()} 資料")
+  return "\n".join(lines)
 
 
 def _row(deal: Deal) -> str:
@@ -324,14 +364,16 @@ def _row(deal: Deal) -> str:
     f'<td class="route">{escape(deal.arrive_port)}</td>',
     f"<td>{ship}</td>",
     f"<td>{escape(deal.cruise_line)}</td>",
-    f'<td data-sort="{deal.nights}">{deal.nights}</td>',
+    f'<td data-sort="{deal.days}">{deal.days}</td>',
     _price_cell(deal),
     f"<td>{escape(deal.source)}{stale}</td>",
     f"<td>{link}</td>",
   ]
+  # title 裡的換行要寫成 &#10;，瀏覽器的原生 tooltip 才會分行
+  title = escape(_row_title(deal)).replace("\n", "&#10;")
   return (
     f'<tr data-port="{escape(deal.depart_port)}" data-line="{escape(deal.cruise_line)}"'
-    f' data-search="{escape(haystack)}">' + "".join(cells) + "</tr>"
+    f' data-search="{escape(haystack)}" title="{title}">' + "".join(cells) + "</tr>"
   )
 
 
@@ -371,7 +413,7 @@ def _fx_note(report: RunReport) -> str:
   css = "note warn" if rate.stale else "note"
   suffix = "（本次未取得新匯率，沿用這一天的值）" if rate.stale else ""
   return (
-    f'<div class="{css}">匯率 1 USD = {escape(str(rate.usd_twd))} TWD'
+    f'<div class="{css}">匯率 1 USD = {escape(_rate_text(rate.usd_twd))} TWD'
     f"・{escape(rate.as_of.isoformat())}・{escape(rate.source)}{suffix}</div>"
   )
 

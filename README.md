@@ -8,7 +8,7 @@
 
 | 輸出 | 位置 | 用途 |
 |---|---|---|
-| 表格網頁 | `docs/index.html`（GitHub Pages） | 日常查看，可排序／篩選／搜尋 |
+| 表格網頁 | `docs/index.html`（GitHub Pages） | 日常查看，可排序／篩選／搜尋；滑鼠停在列上會顯示停靠港、航程、價格說明等 |
 | CSV | `data/deals.csv` | 用 Excel 開（UTF-8 BOM，不會亂碼） |
 | JSON | `data/deals.json` | 程式讀取，含各來源執行狀態 |
 | 每日快照 | `data/history/YYYY-MM-DD.json` | 比對價格變化 |
@@ -475,6 +475,9 @@ scripts/
 - **易遊網的正常頁面也含 `_Incapsula_Resource`**，判斷被擋要看「沒有 `__NEXT_DATA__`
   且有 Incapsula 腳本」，只看後者會把每一頁都當成被擋。
 - **易遊網列表價是 3／4 人房的每人價**，要進商品頁取雙人房成人價才能跟其他來源比。
+- **「航行天數」顯示的是天，資料存的是夜**（`Deal.nights`；`days` 是 +1 的換算）。
+  外國站原生報「N Nights」、台灣站報「N 天」，去重鍵與各來源都以夜為準，
+  只有網頁／CSV／CLI 給人看的地方換成天。JSON 兩個都有。
 - **跨幣別一定要換算後才能比**：`_price_rank` 若比 `price` 而不是 `price_twd`，
   379 USD 會勝過 18,000 TWD，整個比價與排序都會反過來。
 - **Windows 終端機預設 cp950**，印 `✓` 會拋 `UnicodeEncodeError` 讓程式在

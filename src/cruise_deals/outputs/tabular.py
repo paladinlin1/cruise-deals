@@ -323,7 +323,7 @@ def _csv_row(deal: Deal) -> dict[str, str]:
     "目的港口": deal.arrive_port,
     "郵輪名": deal.ship_name,
     "船公司": deal.cruise_line,
-    "航行天數": str(deal.nights),
+    "航行天數": str(deal.days),
     "最低價格": str(deal.price) if deal.price is not None else "",
     "幣別": deal.currency,
     "台幣價格": str(deal.price_twd) if deal.price_twd is not None else "",

@@ -37,7 +37,7 @@ class Deal:
   ports_of_call: tuple[str, ...]  # 沿途停靠港
   ship_name: str  # 郵輪名（正規化後的英文正式船名）
   cruise_line: str  # 船公司
-  nights: int  # 航行天數（夜）
+  nights: int  # 航行夜數（外國站原生報「N Nights」，台灣站的「N 天」減 1 存入；使用者看的是 days）
   price: Decimal | None  # 最低價格；None 代表洽詢報價
   currency: str  # 幣別：外國站 USD、台灣站 TWD
   price_note: str  # 價格的但書，例如 per person / double occupancy
@@ -57,6 +57,14 @@ class Deal:
   price_twd: Decimal | None = None
   fx_rate: Decimal | None = None  # 換算當下使用的 USD→TWD 匯率；台幣原生報價為 None
   ship_name_raw: str = ""  # 來源站的原始船名（台灣站是中文），供除錯與網頁 tooltip
+
+  @property
+  def days(self) -> int:
+    """航行天數。郵輪業慣例 N 夜＝N+1 天（「3 天 2 夜」）；網頁、CSV、CLI 顯示的都是這個。
+
+    內部仍以 nights 為準（去重鍵、各來源的原生單位），這裡只是給人看的換算。
+    """
+    return self.nights + 1
 
   @property
   def dedup_key(self) -> DedupKey:
@@ -80,6 +88,7 @@ class Deal:
   def to_dict(self) -> dict[str, Any]:
     """轉成可直接 json.dumps 的 dict。價格用字串保存以免 float 精度失真。"""
     data = asdict(self)
+    data["days"] = self.days  # 給程式讀 JSON 的人省得自己 +1；from_dict 不讀它
     data["sail_date"] = self.sail_date.isoformat()
     data["scraped_at"] = self.scraped_at.isoformat()
     data["ports_of_call"] = list(self.ports_of_call)

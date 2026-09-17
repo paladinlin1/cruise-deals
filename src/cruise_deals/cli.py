@@ -142,7 +142,7 @@ def print_table(deals: list[Deal]) -> None:
     return
   header = (
     f"{'出發日期':<12}{'出發港':<10}{'目的港':<28}{'郵輪':<24}{'船公司':<20}"
-    f"{'夜':>3}  {'最低價(TWD)':>13}  來源"
+    f"{'天':>3}  {'最低價(TWD)':>13}  來源"
   )
   print(header)
   print("-" * len(header))
@@ -151,7 +151,7 @@ def print_table(deals: list[Deal]) -> None:
     price = f"{amount:,.0f}" if amount is not None else "洽詢報價"
     print(
       f"{d.sail_date.isoformat():<12}{d.depart_port:<10}{d.arrive_port[:26]:<28}"
-      f"{d.ship_name[:22]:<24}{d.cruise_line[:18]:<20}{d.nights:>3}  {price:>13}  "
+      f"{d.ship_name[:22]:<24}{d.cruise_line[:18]:<20}{d.days:>3}  {price:>13}  "
       f"{d.source}"
     )
 
