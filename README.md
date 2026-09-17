@@ -438,11 +438,12 @@ scripts/
 - **icruise 的日期參數不能做 URL 編碼**。`08/13/2026` 被編成 `08%2F13%2F2026`
   時會**間歇性**回 404。解法：自行組 query string 保留字面斜線。
 - **icruise 會間歇性回 404／逾時**，與參數無關。解法：三次遞增延遲重試。
-- **icruise 在 GitHub Actions 上會間歇性拿到「不是搜尋結果頁」的 200 回應**
-  （2026-09-11 起隔三差五 0 筆，本機同一時間 30 筆）。頁面要分三種：有結果表、
-  真正的「No results found」、兩者都不是——第三種以前被當成 0 筆，把前一天的
-  資料整批洗掉。現在第三種拋 ParseError（沿用前次資料）並把現場存進 `debug/`
-  供 artifact 診斷。
+- **icruise 在 GitHub Actions 上會間歇性拿到 HTTP 200 的自家錯誤頁**
+  （「Oh no! There seems to be a problem… creating your account」，2026-09-11 起
+  隔三差五 0 筆，本機同一時間 30 筆）。頁面要分三種：有結果表、真正的
+  「No results found」、兩者都不是——第三種以前被當成 0 筆，把前一天的資料整批
+  洗掉。現在第三種先重試（重送通常就好），重試用完才拋 ParseError（沿用前次資料）
+  並把現場存進 `debug/` 供 artifact 診斷。
 - **Expedia 那個網址不回 JSON**，只是 12KB 的 SPA 空殼。真資料在
   `POST /nitroapi/v2/cruise`，需要 `uniquetid` 授權標頭（由頁面 JS 動態產生）。
   解法：用瀏覽器載入頁面、攔下 SPA 自己的請求標頭再沿用。

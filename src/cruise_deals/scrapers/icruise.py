@@ -229,15 +229,38 @@ def filter_target_ports(deals: list[Deal]) -> list[Deal]:
   return [d for d in deals if d.depart_port in config.TARGET_PORTS]
 
 
-def fetch_page(client: httpx.Client, start: date, end: date) -> str:
-  """送出一段日期區間的查詢並回傳 HTML（含重試）。"""
+class UnrecognisedPage(ParseError):
+  """HTTP 200 但不是搜尋結果頁。帶著原始 HTML，重試用完時才存成現場。"""
+
+  def __init__(self, html: str) -> None:
+    super().__init__("拿到的不是搜尋結果頁（沒有結果表、筆數，也沒有 No results found）")
+    self.html = html
+
+
+def fetch_page(
+  client: httpx.Client, start: date, end: date, delay_s: float = config.REQUEST_DELAY_S
+) -> str:
+  """送出一段日期區間的查詢並回傳搜尋結果頁的 HTML（含重試）。
+
+  該站除了間歇性 404／5xx，還會回 HTTP 200 的自家錯誤頁
+  （「Oh no! There seems to be a problem… creating your account」，CI 上實際抓到），
+  重送通常就好了；所以「不是結果頁」也算暫時性失敗一起重試，
+  重試用完才拋 ParseError 並把最後一次的頁面存進 debug/。
+  """
 
   def once() -> str:
     response = client.get(build_search_url(start, end))
     response.raise_for_status()
+    if page_state(response.text) == "unknown":
+      raise UnrecognisedPage(response.text)
     return response.text
 
-  return with_retry(once, attempts=3, delay_s=config.REQUEST_DELAY_S)
+  try:
+    return with_retry(once, attempts=3, delay_s=delay_s)
+  except UnrecognisedPage as exc:
+    saved = save_debug(start, end, exc.html)
+    where = f"（現場已存到 {saved}）" if saved else ""
+    raise ParseError(f"{exc}{where}") from exc
 
 
 def scrape(
@@ -264,6 +287,7 @@ def scrape(
       try:
         page_deals = parse_search_page(html)
       except ParseError as exc:
+        # 版面改版（宣稱有結果卻解析出 0）也把現場留下
         saved = save_debug(chunk_start, chunk_end, html)
         where = f"（現場已存到 {saved}）" if saved else ""
         raise ParseError(f"{exc}{where}") from exc

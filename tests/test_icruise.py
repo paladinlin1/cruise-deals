@@ -151,6 +151,52 @@ class TestSanityCheck:
     assert icruise.page_state(keelung_html) == "results"
 
 
+class TestErrorPageRetry:
+  """CI 上實際拿到的是該站自己的錯誤頁（「Oh no! There seems to be a problem…
+  There was a problem when creating your account」，HTTP 200、有導覽列、沒有結果區塊）。
+  這種頁面重送一次通常就好了，所以先重試，重試用完才失敗並存現場。"""
+
+  ERROR_PAGE = load("icruise_error_page.html")
+
+  def test_real_ci_error_page_is_unrecognised(self):
+    assert icruise.page_state(self.ERROR_PAGE) == "unknown"
+
+  def test_error_page_is_retried_until_a_results_page_comes_back(self, keelung_html):
+    import httpx
+
+    responses = [self.ERROR_PAGE, self.ERROR_PAGE, keelung_html]
+    calls = []
+
+    def handler(request):
+      calls.append(request.url)
+      return httpx.Response(200, text=responses[len(calls) - 1])
+
+    client = httpx.Client(transport=httpx.MockTransport(handler))
+    html = icruise.fetch_page(client, date(2026, 9, 17), date(2026, 9, 21), delay_s=0)
+
+    assert len(calls) == 3
+    assert icruise.page_state(html) == "results"
+
+  def test_error_page_on_every_attempt_fails_loudly_and_saves_the_page(
+    self, tmp_path, monkeypatch
+  ):
+    import httpx
+
+    from cruise_deals import config
+
+    monkeypatch.setattr(config, "DEBUG_DIR", tmp_path / "debug")
+    client = httpx.Client(
+      transport=httpx.MockTransport(lambda r: httpx.Response(200, text=self.ERROR_PAGE))
+    )
+
+    with pytest.raises(ParseError, match="不是搜尋結果頁") as info:
+      icruise.fetch_page(client, date(2026, 9, 17), date(2026, 9, 21), delay_s=0)
+
+    saved = tmp_path / "debug" / "icruise_2026-09-17_2026-09-21.html"
+    assert saved.exists()
+    assert str(saved) in str(info.value)
+
+
 class TestDebugSnapshot:
   def test_unrecognised_page_is_saved_for_diagnosis(self, tmp_path, monkeypatch):
     # CI 會把 debug/ 當成 artifact 上傳；沒有現場就永遠不知道對方回了什麼
