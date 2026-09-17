@@ -1,14 +1,14 @@
 {
-  "generated_at": "2026-09-17T03:03:11.990515+00:00",
+  "generated_at": "2026-09-17T03:12:43.252757+00:00",
   "run_report": {
-    "generated_at": "2026-09-17T03:03:11.990515+00:00",
+    "generated_at": "2026-09-17T03:12:43.252757+00:00",
     "sources": [
       {
-        "source": "eztravel",
-        "ok": true,
-        "count": 5,
-        "duration_s": 30.89,
-        "error": null
+        "source": "icruise",
+        "ok": false,
+        "count": 0,
+        "duration_s": 1.58,
+        "error": "ParseError: 拿到的不是搜尋結果頁（沒有結果表、筆數，也沒有 No results found）（現場已存到 /home/runner/work/cruise-deals/cruise-deals/debug/icruise_2026-09-17_2026-09-21.html）"
       }
     ],
     "warnings": []
@@ -94,7 +94,7 @@
       "price_note": "雙人房成人（每人）",
       "detail_url": "https://vacation.eztravel.com.tw/pkgfrn/introduction/FRN0000020376/20260923",
       "scraped_at": "2026-09-17T03:02:58.558839+00:00",
-      "stale_since": null,
+      "stale_since": "2026-09-17",
       "other_sources": {
         "asiayo": {
           "price": "9300",
@@ -192,7 +192,7 @@
       "price_note": "雙人房成人（每人）",
       "detail_url": "https://vacation.eztravel.com.tw/pkgfrn/introduction/FRN0000020393/20260927",
       "scraped_at": "2026-09-17T03:02:58.558839+00:00",
-      "stale_since": null,
+      "stale_since": "2026-09-17",
       "other_sources": {
         "asiayo": {
           "price": "21583",
@@ -308,7 +308,7 @@
       "price_note": "雙人房成人（每人）",
       "detail_url": "https://vacation.eztravel.com.tw/pkgfrn/introduction/FRN0000020382/20261004",
       "scraped_at": "2026-09-17T03:02:58.558839+00:00",
-      "stale_since": null,
+      "stale_since": "2026-09-17",
       "other_sources": {},
       "price_twd": "14000",
       "fx_rate": null,
@@ -646,7 +646,7 @@
       "price_note": "雙人房成人（每人）",
       "detail_url": "https://vacation.eztravel.com.tw/pkgfrn/introduction/FRN0000020380/20261013",
       "scraped_at": "2026-09-17T03:02:58.558839+00:00",
-      "stale_since": null,
+      "stale_since": "2026-09-17",
       "other_sources": {
         "asiayo": {
           "price": "25950",
