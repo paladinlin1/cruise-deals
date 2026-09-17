@@ -7,6 +7,11 @@
      strResultsPerPage 等分頁參數由 GET 傳入全部無效。
   2. Sail_DateFrom / Sail_DateTo 接受 MM/DD/YYYY 且確實生效。
 所以改用「切分日期窗口」讓每段結果自然低於 25 筆上限。
+
+另外要分清楚三種頁面：有結果表、真正的「No results found」、以及**兩者都不是**
+（被擋、錯誤頁、改版）。2026-09-11 起 GitHub Actions 上隔三差五回 0 筆而本機
+同一時間有 30 筆，就是第三種被當成第二種，把前一天的 20 多筆整批洗掉。
+第三種要拋 ParseError 並把現場存進 debug/（CI 會上傳成 artifact）。
 """
 
 from __future__ import annotations
@@ -15,7 +20,8 @@ import logging
 import re
 import time
 from datetime import date, timedelta
-from typing import TYPE_CHECKING, TypeVar
+from pathlib import Path
+from typing import TYPE_CHECKING, Literal, TypeVar
 
 import httpx
 from selectolax.parser import HTMLParser, Node
@@ -34,6 +40,10 @@ T = TypeVar("T")
 SOURCE = "icruise"
 
 _MATCHED_RE = re.compile(r"([\d,]+)\s+Matched\s+Sailing", re.I)
+# 真正沒有結果時 #searchresults_wrapper 裡的字樣（實測 2026-09-17）
+_NO_RESULTS_RE = re.compile(r"No\s+results\s+found", re.I)
+
+PageState = Literal["results", "empty", "unknown"]
 
 
 def build_search_params(start: date, end: date) -> dict[str, str | int]:
@@ -157,12 +167,32 @@ def _parse_row(row: Node, scraped_at) -> Deal | None:
   )
 
 
+def page_state(html: str) -> PageState:
+  """這一頁是哪一種：有結果表（results）、真正沒結果（empty）、認不出來（unknown）。
+
+  「0 Matched Sailings」與「No results found」都算 empty；
+  三種特徵都沒有的頁面不能當成 0 筆——那通常是被擋或錯誤頁。
+  """
+  if "results_table" in html:
+    return "results"
+  if _NO_RESULTS_RE.search(html) or _MATCHED_RE.search(html):
+    return "empty"
+  return "unknown"
+
+
 def parse_search_page(html: str) -> list[Deal]:
   """解析一頁搜尋結果。
 
-  若頁面宣稱有結果卻一筆都解析不出來，拋 ParseError——
-  那代表版面改版了，安靜回傳空清單會讓下游誤刪好資料。
+  兩種情況都要大聲失敗而不是回空清單：頁面宣稱有結果卻一筆都解析不出來
+  （版面改版），以及根本不是搜尋結果頁（被擋、錯誤頁）。
+  安靜回傳空清單會讓下游誤以為「今天真的沒有航次」而洗掉好資料。
   """
+  state = page_state(html)
+  if state == "unknown":
+    raise ParseError("拿到的不是搜尋結果頁（沒有結果表、筆數，也沒有 No results found）")
+  if state == "empty":
+    return []
+
   scraped_at = utcnow()
   tree = HTMLParser(html)
   table = tree.css_first("table#results_table")
@@ -180,6 +210,18 @@ def parse_search_page(html: str) -> list[Deal]:
       f"頁面宣稱有 {claimed} 筆結果，卻解析出 0 筆——icruise 版面可能已改版"
     )
   return deals
+
+
+def save_debug(start: date, end: date, html: str) -> Path | None:
+  """把認不出來的頁面存進 debug/，CI 會當成 artifact 上傳供診斷。存不下來不影響主流程。"""
+  try:
+    config.DEBUG_DIR.mkdir(parents=True, exist_ok=True)
+    path = config.DEBUG_DIR / f"icruise_{start.isoformat()}_{end.isoformat()}.html"
+    path.write_text(html, encoding="utf-8")
+  except Exception as exc:  # noqa: BLE001 - 存不下來也不該影響主流程
+    log.debug("儲存除錯 HTML 失敗：%s", exc)
+    return None
+  return path
 
 
 def filter_target_ports(deals: list[Deal]) -> list[Deal]:
@@ -219,7 +261,12 @@ def scrape(
       if index:
         time.sleep(config.REQUEST_DELAY_S)  # 禮貌延遲
       html = fetch_page(client, chunk_start, chunk_end)
-      page_deals = parse_search_page(html)
+      try:
+        page_deals = parse_search_page(html)
+      except ParseError as exc:
+        saved = save_debug(chunk_start, chunk_end, html)
+        where = f"（現場已存到 {saved}）" if saved else ""
+        raise ParseError(f"{exc}{where}") from exc
       claimed = matched_count(html)
       if claimed > 25:
         # 切段後仍撞到 25 筆上限代表會漏資料，記下來以便調小 chunk_days

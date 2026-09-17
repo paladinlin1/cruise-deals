@@ -111,7 +111,12 @@ class TestFilterTargetPorts:
 
 
 class TestSanityCheck:
-  """版面改版時要大聲失敗，不能安靜地回傳空清單。"""
+  """版面改版或被擋時要大聲失敗，不能安靜地回傳空清單。
+
+  2026-09-11 起 GitHub Actions 上隔三差五回 0 筆（本機同一時間有 30 筆），
+  就是因為「拿到的根本不是搜尋結果頁」被當成「今天真的沒有航次」，
+  把 icruise 前一天的 20 多筆整批洗掉。
+  """
 
   def test_raises_when_page_claims_results_but_none_parsed(self):
     html = (
@@ -121,12 +126,40 @@ class TestSanityCheck:
     with pytest.raises(ParseError):
       icruise.parse_search_page(html)
 
-  def test_empty_result_page_returns_empty_list(self):
+  def test_page_that_says_zero_matched_is_empty(self):
     html = (
       '<html><body><span class="matched-text">0 Matched Sailings</span>'
       "</body></html>"
     )
     assert icruise.parse_search_page(html) == []
+
+  def test_real_no_results_page_is_empty(self):
+    # 查 2030 年的區間，該站回「No results found」——這才是真正的 0 筆
+    html = load("icruise_no_results.html")
+    assert icruise.page_state(html) == "empty"
+    assert icruise.parse_search_page(html) == []
+
+  def test_page_without_results_or_no_results_marker_is_unrecognised(self):
+    # 沒有結果表、沒有筆數、也沒有「No results found」——這不是搜尋結果頁，
+    # 可能是被擋、錯誤頁或改版，不能當成 0 筆
+    html = "<html><body><h1>Access Denied</h1></body></html>"
+    assert icruise.page_state(html) == "unknown"
+    with pytest.raises(ParseError, match="不是搜尋結果頁"):
+      icruise.parse_search_page(html)
+
+  def test_results_page_state(self, keelung_html):
+    assert icruise.page_state(keelung_html) == "results"
+
+
+class TestDebugSnapshot:
+  def test_unrecognised_page_is_saved_for_diagnosis(self, tmp_path, monkeypatch):
+    # CI 會把 debug/ 當成 artifact 上傳；沒有現場就永遠不知道對方回了什麼
+    from cruise_deals import config
+
+    monkeypatch.setattr(config, "DEBUG_DIR", tmp_path / "debug")
+    path = icruise.save_debug(date(2026, 9, 17), date(2026, 9, 21), "<html>Access Denied</html>")
+    assert path == tmp_path / "debug" / "icruise_2026-09-17_2026-09-21.html"
+    assert path.read_text(encoding="utf-8") == "<html>Access Denied</html>"
 
 
 class TestBuildSearchUrl:
