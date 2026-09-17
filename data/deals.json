@@ -1,13 +1,13 @@
 {
-  "generated_at": "2026-09-17T03:16:57.142698+00:00",
+  "generated_at": "2026-09-17T03:21:20.356855+00:00",
   "run_report": {
-    "generated_at": "2026-09-17T03:16:57.142698+00:00",
+    "generated_at": "2026-09-17T03:21:20.356855+00:00",
     "sources": [
       {
         "source": "icruise",
         "ok": false,
         "count": 0,
-        "duration_s": 9.89,
+        "duration_s": 13.86,
         "error": "ParseError: 拿到的不是搜尋結果頁（沒有結果表、筆數，也沒有 No results found）（現場已存到 /home/runner/work/cruise-deals/cruise-deals/debug/icruise_2026-09-17_2026-09-21.html）"
       }
     ],
