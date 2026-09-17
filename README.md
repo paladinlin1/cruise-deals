@@ -25,9 +25,11 @@
 | **cruisedirect.com** | USD | ✅ 正常 | Cloudflare 保護，用 SeleniumBase CDP Mode 通過 |
 | **asiayo.com** | TWD | ✅ 正常 | Next.js 伺服器渲染，`httpx` 讀 RSC payload，不需瀏覽器 |
 | **bwt.com.tw**（百威旅遊） | TWD | ✅ 正常 | SSE JSON API，`httpx` 直接串流，不需瀏覽器 |
+| **liontravel.com**（雄獅旅遊） | TWD | ✅ 正常 | 搜尋 JSON API，`httpx` 直接 POST，不需 cookie 也不需瀏覽器 |
 
 > 百威旅遊的郵輪團期最早在**三個月後**，所以在預設的一個月窗口下它常態回 0 筆。
-> 這是正常狀態，不是壞掉；想看得更遠可以加 `--lookahead-days 180`。
+> 雄獅則是**一個月內的基隆／東京團期幾乎都「暫時額滿」**，額滿的不收，所以也常只有零星幾筆。
+> 這些都是正常狀態，不是壞掉；想看得更遠可以加 `--lookahead-days 180`。
 
 ### cruisedirect 的存取方式
 
@@ -219,6 +221,43 @@ context = ssl.create_default_context(cafile=certifi.where())
 context.verify_flags &= ~ssl.VERIFY_X509_STRICT
 ```
 
+### 雄獅旅遊的存取方式
+
+搜尋頁是 React SPA，商品清單由前端打這支 API 取得，實測**不需要 cookie 或授權標頭**：
+
+```
+POST https://travel.liontravel.com/search/grouplistinfojson
+Content-Type: application/json
+{"TripTypes": "01", "GoDatestart": "2026-09-16", "GoDateEnd": "2026-10-16",
+ "Page": 1, "PageSize": 100, … 其餘欄位照網站原樣送（多為 null）}
+```
+
+`TripTypes: "01"` 是「交通型態＝郵輪」（`02` 巴士、`04` 航空），
+比關鍵字搜尋可靠——關鍵字「郵輪」反而回 0 筆。
+**查詢 body 要照網站原樣送完整欄位**，只送幾個欄位時同樣的條件會回 0 筆。
+
+回應是 `NormGroupList[]`（商品）底下掛 `GroupList[]`（團期），
+每個團期都有自己的 `GoDate` 與 `StraightLowestPrice`（直客價），
+所以不必像 asiayo 那樣把日期窗口切段查。
+
+出發港藏在商品名稱裡，只認三種寫法：`基隆出發`、`東京上下`（原港來回）、
+`東京上首爾下`（單程）。**不能整段字串比對**——「神戶上基隆下」含「基隆」但是神戶出發。
+回應裡的 `StartFromCityList`／`IsCruise` 欄位不能用：前者是集合城市不是登船港
+（東京上下的鑽石公主號標「台北」），後者全站都是 `False`。
+標題另有「台北出發」之類非目標港「X出發」的是機＋船套裝，不收。
+
+東京出發的商品是**純船票**（詳情頁寫明「不含國際段機票」「售價兩人一室每人艙房費用」），
+可以跟外國站的 Tokyo 航次直接比價。
+
+團期狀態 `full`（暫時額滿）**不收**：額滿的價格拿去跨來源比價會誤導最低價。
+實測（2026-09-16）一個月內全站 76 個團期有 72 個額滿，基隆／東京出發的 26 個**全部**額滿，
+所以這一站在預設窗口下常態只有零星幾筆。
+
+同一航次會有兩個供應商——雄獅自家（`TourSource=Lion`，探索星號 3 日 12,300）與
+「【主題旅遊】」合作商品（`GoUni`，同航次 8,000）。來源內去重只留最便宜的，
+與百威「同航次多個 groupCode 留最便宜」同一原則，但兩者的價格定義可能不同
+（艙等、幾人一室），看到雄獅的價格特別低時要點進 `detail_url` 確認。
+
 ## 匯率與台幣比價
 
 台灣站報台幣、外國站報美元，不換算就比大小的話 379 美元會被判定比
@@ -285,14 +324,14 @@ patchright install chromium       # Expedia 用
 # cruisedirect 用 SeleniumBase，會自動下載 uc_driver；Linux 另需 apt install xvfb
 
 python -m cruise_deals                                   # 全部來源
-python -m cruise_deals --sources icruise,asiayo,bwt      # 只跑免瀏覽器的來源（最快）
+python -m cruise_deals --sources icruise,asiayo,bwt,lion # 只跑免瀏覽器的來源（最快）
 python -m cruise_deals --dry-run                         # 不寫檔，只印表格
 python -m cruise_deals --sources expedia --headed        # 有頭模式觀察瀏覽器
 python -m cruise_deals --lookahead-days 60               # 改成看兩個月
 python -m cruise_deals --fx-rate 31.97                   # 指定匯率，不連網查
 ```
 
-`icruise`、`asiayo`、`bwt` 都是純 `httpx`，不需要 Chromium 也不需要 xvfb。
+`icruise`、`asiayo`、`bwt`、`lion` 都是純 `httpx`，不需要 Chromium 也不需要 xvfb。
 
 離開碼：**所有**來源都失敗時為 1，否則為 0（部分失敗仍算成功）。
 
@@ -332,7 +371,8 @@ src/cruise_deals/
 │   ├── expedia.py       # patchright 取得授權標頭 + JSON API
 │   ├── cruisedirect.py  # SeleniumBase CDP Mode 穿過 Cloudflare
 │   ├── asiayo.py        # httpx + Next.js RSC payload
-│   └── bwt.py           # httpx + SSE JSON API
+│   ├── bwt.py           # httpx + SSE JSON API
+│   └── lion.py          # httpx + 搜尋 JSON API
 ├── outputs/
 │   ├── tabular.py       # 合併邏輯、台幣換算、CSV／JSON、歷史快照
 │   └── page.py          # 自足的 GitHub Pages 表格網頁
@@ -384,6 +424,9 @@ scripts/
   `VERIFY_X509_STRICT` 會擋下來。只清那個旗標，不要用 `verify=False`。
 - **百威 30 天內常態 0 筆**是正常的（團期最早在三個月後），
   所以它過濾後沒有結果時不拋錯——但 SSE 沒收到 `step3` 就一定要拋。
+- **雄獅 30 天內也常態只有零星幾筆**（基隆團期幾乎都「暫時額滿」，額滿的不收），
+  同樣過濾後 0 筆不拋錯——但 API 整批回 0 個郵輪商品就一定要拋，
+  全球一個月內不可能沒有郵輪團。
 - **跨幣別一定要換算後才能比**：`_price_rank` 若比 `price` 而不是 `price_twd`，
   379 USD 會勝過 18,000 TWD，整個比價與排序都會反過來。
 - **Windows 終端機預設 cp950**，印 `✓` 會拋 `UnicodeEncodeError` 讓程式在

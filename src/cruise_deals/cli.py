@@ -77,12 +77,18 @@ def default_scrapers() -> dict[str, ScraperFn]:
 
     return bwt.scrape(lookahead_days=opts.lookahead_days)
 
+  def run_lion(opts: argparse.Namespace) -> list[Deal]:
+    from .scrapers import lion
+
+    return lion.scrape(lookahead_days=opts.lookahead_days)
+
   return {
     "icruise": run_icruise,
     "expedia": run_expedia,
     "cruisedirect": run_cruisedirect,
     "asiayo": run_asiayo,
     "bwt": run_bwt,
+    "lion": run_lion,
   }
 
 

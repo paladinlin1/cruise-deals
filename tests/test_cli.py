@@ -141,11 +141,12 @@ class TestPreviousDataIsRespected:
 
 class TestNewSourcesAreRegistered:
   def test_taiwanese_sources_are_selectable(self):
-    assert cli.parse_sources("asiayo,bwt") == ["asiayo", "bwt"]
+    assert cli.parse_sources("asiayo,bwt,lion") == ["asiayo", "bwt", "lion"]
 
   def test_default_run_includes_them(self):
     assert "asiayo" in cli.parse_sources(None)
     assert "bwt" in cli.parse_sources(None)
+    assert "lion" in cli.parse_sources(None)
 
   def test_real_registry_has_a_function_for_every_source(self):
     assert set(cli.default_scrapers()) == set(cli.config.ALL_SOURCES)

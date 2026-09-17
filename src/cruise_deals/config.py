@@ -90,6 +90,7 @@ SHIP_ALIASES: dict[str, str] = {
   # 挪威
   "喜悅號": "Norwegian Joy",
   "暢意號": "Norwegian Spirit",
+  "翡翠號": "Norwegian Jade",
   # 日系
   "富士號": "Mitsui Ocean Fuji",
   "飛鳥Ⅲ": "Asuka III",
@@ -154,6 +155,15 @@ BWT_TOUR_URL = "https://www.bwt.com.tw/Tour/{group_code}"
 # 桃園國際機場出發的是「機票＋郵輪」套裝，價格含機票，比了會失真。
 BWT_DEPARTURE = "基隆港"
 
+# 雄獅旅遊（搜尋頁是 React SPA，資料走 JSON API，不需 cookie）
+# TripTypes 是「交通型態」篩選，"01" 是郵輪（其餘 "02" 巴士、"04" 航空）。
+LION_SEARCH_URL = "https://travel.liontravel.com/search/grouplistinfojson"
+LION_DETAIL_URL = (
+  "https://travel.liontravel.com/detail?NormGroupID={norm_group_id}&GroupID={group_id}"
+)
+LION_TRIP_TYPE_CRUISE = "01"
+LION_PAGE_SIZE = 100
+
 # 匯率來源（皆免金鑰）。台銀 rate.bot.com.tw 已上機器人挑戰頁，CI 不可用。
 FX_PRIMARY_URL = "https://open.er-api.com/v6/latest/USD"
 FX_FALLBACK_URL = "https://tw.rter.info/capi.php"
@@ -167,4 +177,4 @@ USER_AGENT = (
 )
 
 # 所有可用來源名稱（CLI --sources 用）
-ALL_SOURCES = ("icruise", "expedia", "cruisedirect", "asiayo", "bwt")
+ALL_SOURCES = ("icruise", "expedia", "cruisedirect", "asiayo", "bwt", "lion")
