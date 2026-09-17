@@ -280,3 +280,17 @@ class TestMatchAlias:
 
   def test_returns_none_for_empty_text(self):
     assert normalize.match_alias("", {"探索星號": "Star Voyager"}) is None
+
+
+class TestShipAliasKey:
+  """商品名稱裡「對照表命中的中文船名」本身——給 ship_name_raw 用。"""
+
+  def test_returns_the_chinese_key_not_the_english_value(self):
+    assert normalize.ship_alias_key("【三井海洋郵輪富士號船票】2026年台灣國慶之旅") == "富士號"
+
+  def test_longest_key_wins(self):
+    # 「藍寶石公主號」不能被「公主號」之類較短的鍵搶走
+    assert normalize.ship_alias_key("公主遊輪藍寶石公主號～沖繩") == "藍寶石公主號"
+
+  def test_none_when_unmapped(self):
+    assert normalize.ship_alias_key("挪威郵輪暢悅號") is None

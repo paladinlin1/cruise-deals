@@ -72,6 +72,22 @@ def run_scraper(source: str, fn: Callable[[], list[Deal]]) -> ScrapeResult:
   )
 
 
+def keep_cheapest(deals: list[Deal]) -> list[Deal]:
+  """來源內去重：同一航次（dedup_key 相同）只留最便宜的一筆，洽詢報價永遠輸給有價格的。
+
+  台灣站常把同一航次拆成多個商品（不同供應商、加購方案、「週三出發」「週日出發」），
+  不先收斂會在合併階段變成「自己跟自己比價」。
+  """
+  collected: dict[tuple, Deal] = {}
+  for deal in deals:
+    existing = collected.get(deal.dedup_key)
+    if existing is None or (
+      deal.price is not None and (existing.price is None or deal.price < existing.price)
+    ):
+      collected[deal.dedup_key] = deal
+  return list(collected.values())
+
+
 def format_exception(exc: BaseException) -> str:
   """給除錯輸出用的完整 traceback。"""
   return "".join(traceback.format_exception(type(exc), exc, exc.__traceback__))

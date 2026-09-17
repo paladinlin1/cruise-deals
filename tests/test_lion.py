@@ -23,7 +23,7 @@ import pytest
 
 from cruise_deals import config
 from cruise_deals.scrapers import lion
-from cruise_deals.scrapers.base import ParseError
+from cruise_deals.scrapers.base import ParseError, keep_cheapest
 
 FIXTURES = Path(__file__).parent / "fixtures"
 
@@ -316,7 +316,7 @@ class TestWithinSourceDedup:
       ],
     )
 
-    deals = lion.dedup(lion.parse_norm_groups([own, partner], *WINDOW))
+    deals = keep_cheapest(lion.parse_norm_groups([own, partner], *WINDOW))
 
     assert len(deals) == 1
     assert deals[0].price == Decimal("11000")
@@ -327,8 +327,8 @@ class TestWithinSourceDedup:
     priced = make_deal(source="lion", price=Decimal("12900"))
     unpriced = make_deal(source="lion", price=None)
 
-    assert lion.dedup([unpriced, priced])[0].price == Decimal("12900")
-    assert lion.dedup([priced, unpriced])[0].price == Decimal("12900")
+    assert keep_cheapest([unpriced, priced])[0].price == Decimal("12900")
+    assert keep_cheapest([priced, unpriced])[0].price == Decimal("12900")
 
 
 class TestFetching:

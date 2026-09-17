@@ -4,7 +4,7 @@
     python -m cruise_deals                        # 全部來源
     python -m cruise_deals --sources icruise      # 只跑輕量來源
     python -m cruise_deals --dry-run              # 不寫檔，只印出表格
-    python -m cruise_deals --sources expedia --headed   # 有頭瀏覽器觀察
+    python -m cruise_deals --sources expedia,eztravel --headed   # 有頭瀏覽器觀察
 """
 
 from __future__ import annotations
@@ -82,6 +82,13 @@ def default_scrapers() -> dict[str, ScraperFn]:
 
     return lion.scrape(lookahead_days=opts.lookahead_days)
 
+  def run_eztravel(opts: argparse.Namespace) -> list[Deal]:
+    from .scrapers import eztravel
+
+    return eztravel.scrape(
+      lookahead_days=opts.lookahead_days, headless=not opts.headed
+    )
+
   return {
     "icruise": run_icruise,
     "expedia": run_expedia,
@@ -89,6 +96,7 @@ def default_scrapers() -> dict[str, ScraperFn]:
     "asiayo": run_asiayo,
     "bwt": run_bwt,
     "lion": run_lion,
+    "eztravel": run_eztravel,
   }
 
 

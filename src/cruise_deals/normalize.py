@@ -202,6 +202,20 @@ def canonical_ship(name: str | None) -> str:
   return text
 
 
+def ship_alias_key(text: str | None) -> str | None:
+  """商品名稱裡對照表命中的**中文船名本身**（「富士號」），對不到回 None。
+
+  給台灣站的 ship_name_raw 用：split_ship_and_line 回的 raw 是「【】附近的字樣」，
+  遇到「【三大好禮全含｜…】【三井海洋郵輪富士號船票】…」這種行銷括號在前的標題
+  會拿到促銷文案；這裡直接回別名表的鍵，網頁 tooltip 才看得出是哪艘船。
+  """
+  return match_alias(text, _SHIP_KEYS)
+
+
+# 鍵對鍵的別名表：match_alias 回傳「命中的鍵」而不是英文值
+_SHIP_KEYS = {key: key for key in config.SHIP_ALIASES}
+
+
 def is_unmapped_ship(name: str | None) -> bool:
   """判斷這個船名是否沒對應到英文正式名（含中日文字元即視為未對照）。
 

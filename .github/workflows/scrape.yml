@@ -48,7 +48,7 @@ jobs:
       - name: 安裝相依套件
         run: pip install -e ".[dev,browser]"
 
-      - name: 安裝 Chromium（Expedia 用）
+      - name: 安裝 Chromium（Expedia、易遊網 用）
         run: patchright install --with-deps chromium
 
       - name: 安裝 xvfb（cruisedirect 用）

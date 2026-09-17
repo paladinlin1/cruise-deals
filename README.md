@@ -26,6 +26,7 @@
 | **asiayo.com** | TWD | ✅ 正常 | Next.js 伺服器渲染，`httpx` 讀 RSC payload，不需瀏覽器 |
 | **bwt.com.tw**（百威旅遊） | TWD | ✅ 正常 | SSE JSON API，`httpx` 直接串流，不需瀏覽器 |
 | **liontravel.com**（雄獅旅遊） | TWD | ✅ 正常 | 搜尋 JSON API，`httpx` 直接 POST，不需 cookie 也不需瀏覽器 |
+| **eztravel.com.tw**（易遊網） | TWD | ✅ 正常 | Incapsula 保護，patchright 載入第一頁後其餘請求走 `page.request`，讀 `__NEXT_DATA__` |
 
 > 百威旅遊的郵輪團期最早在**三個月後**，所以在預設的一個月窗口下它常態回 0 筆。
 > 雄獅則是**一個月內的基隆／東京團期幾乎都「暫時額滿」**，額滿的不收，所以也常只有零星幾筆。
@@ -258,6 +259,49 @@ Content-Type: application/json
 與百威「同航次多個 groupCode 留最便宜」同一原則，但兩者的價格定義可能不同
 （艙等、幾人一室），看到雄獅的價格特別低時要點進 `detail_url` 確認。
 
+### 易遊網的存取方式
+
+Next.js 網站，資料在 `<script id="__NEXT_DATA__">` 裡，是台灣站裡結構最乾淨的
+（出發港、停靠城市、天數、逐艙等價格都是欄位，不用猜標題）。但整站有 **Incapsula**：
+`httpx` 直接請求只會拿到 212 bytes 的挑戰頁。實測（2026-09-17）：
+
+| 方式 | 結果 |
+|---|---|
+| `httpx` 直接請求 | ❌ 挑戰頁（`_Incapsula_Resource`） |
+| patchright 無頭載入第一頁 | ✅ 2～12 秒後拿到 `__NEXT_DATA__` |
+| 之後改用 `page.request.get()` | ✅ 共用 cookie，每次 0.2 秒，不必渲染 |
+
+所以瀏覽器只用來載入第一頁，之後的列表與商品頁全走 `page.request`（同 expedia 的做法）。
+
+⚠️ **正常頁面也會嵌 `/_Incapsula_Resource?…` 監控腳本**，不能拿「HTML 含這個字串」
+當被擋的判斷——要先找 `__NEXT_DATA__`，找不到才看是不是挑戰頁。
+
+列表網址 `/pkgfrn/results/KEE/{航線代碼}?depDateFrom=…&depDateTo=…&pageSize=100`。
+日期參數有效，但站方會把 `depDateFrom` 往後推到約今天＋2（要 0917 回 0919），
+最近兩天的出發日本來就不會出現。**預設一頁只回 12 筆而且 `page` 參數無效**，
+`pageSize` 才有效，所以一次要完；回應的 `pageConfig.total` 仍比拿到的多就視為截斷、拋錯。
+**沒有「全部航線」的查詢**（父代碼 331 會回「系統升級中」），要逐個亞洲葉節點航線查
+（`config.EZTRAVEL_ROUTE_CODES`：沖繩、九州、韓國、日本環遊、日韓、亞洲多國、海上巡遊）。
+
+**列表的 `minPrice1` 不能直接用**：那是「所有艙等 × 佔床人數」的最低價，
+實際是 3／4 人房的每人價（探索星號 3 日 6,325），其他來源都是 2 人一室。
+所以每個出發日都再進商品頁 `/pkgfrn/introduction/{prodNo}/{saleDt}`，
+從 `pfProPrice4Introductions` 取「雙人房 × 成人」各艙等的最低價（同一航次 8,000，
+與雄獅對得上）；商品頁拿不到時退回列表價並在 `price_note` 註明。
+但**商品頁若回的是 Incapsula 挑戰頁就整個來源失敗**——那代表 cookie 已失效，
+若安靜退回列表價會讓整站報價系統性偏低卻回報成功。
+
+**列表的 `tourCitysNm` 是商品群組的標籤，不是該航次的行程**（富士號 5 天的商品標
+「與那國島、石垣島、沖繩」，實際只停那霸），停靠港與到達港要用商品頁的 `routeInfo.routes`。
+
+出發地分類 `departArea` 只有基隆港／高雄港／桃園機場（機＋船）／海外登船，
+東京／橫濱出發的藏在「海外登船」裡且登船港要從標題猜，目前只收基隆。
+但**「蘇澳出發，基隆返回」也被歸在基隆港分類下**，標題有「(X出發，Y返回)」時
+要再確認 X 是基隆。`fullStatus == "END"`（關團）的出發日不收，與雄獅的額滿同一原則。
+
+CI 上的 Incapsula 行為尚未驗證（實測都在住宅 IP）；若 GitHub Actions 回 `BlockedError`，
+可比照 cruisedirect 走家用路由器的 SOCKS5 通道。
+
 ## 匯率與台幣比價
 
 台灣站報台幣、外國站報美元，不換算就比大小的話 379 美元會被判定比
@@ -320,13 +364,13 @@ asiayo 兩個一起寫成「東京（東京/橫濱）」），分開看會讓同
 python -m venv .venv
 .venv\Scripts\activate            # Windows
 pip install -e ".[dev,browser]"
-patchright install chromium       # Expedia 用
+patchright install chromium       # Expedia、易遊網 用
 # cruisedirect 用 SeleniumBase，會自動下載 uc_driver；Linux 另需 apt install xvfb
 
 python -m cruise_deals                                   # 全部來源
 python -m cruise_deals --sources icruise,asiayo,bwt,lion # 只跑免瀏覽器的來源（最快）
 python -m cruise_deals --dry-run                         # 不寫檔，只印表格
-python -m cruise_deals --sources expedia --headed        # 有頭模式觀察瀏覽器
+python -m cruise_deals --sources expedia,eztravel --headed # 有頭模式觀察瀏覽器
 python -m cruise_deals --lookahead-days 60               # 改成看兩個月
 python -m cruise_deals --fx-rate 31.97                   # 指定匯率，不連網查
 ```
@@ -372,7 +416,8 @@ src/cruise_deals/
 │   ├── cruisedirect.py  # SeleniumBase CDP Mode 穿過 Cloudflare
 │   ├── asiayo.py        # httpx + Next.js RSC payload
 │   ├── bwt.py           # httpx + SSE JSON API
-│   └── lion.py          # httpx + 搜尋 JSON API
+│   ├── lion.py          # httpx + 搜尋 JSON API
+│   └── eztravel.py      # patchright 過 Incapsula + page.request 讀 __NEXT_DATA__
 ├── outputs/
 │   ├── tabular.py       # 合併邏輯、台幣換算、CSV／JSON、歷史快照
 │   └── page.py          # 自足的 GitHub Pages 表格網頁
@@ -427,6 +472,9 @@ scripts/
 - **雄獅 30 天內也常態只有零星幾筆**（基隆團期幾乎都「暫時額滿」，額滿的不收），
   同樣過濾後 0 筆不拋錯——但 API 整批回 0 個郵輪商品就一定要拋，
   全球一個月內不可能沒有郵輪團。
+- **易遊網的正常頁面也含 `_Incapsula_Resource`**，判斷被擋要看「沒有 `__NEXT_DATA__`
+  且有 Incapsula 腳本」，只看後者會把每一頁都當成被擋。
+- **易遊網列表價是 3／4 人房的每人價**，要進商品頁取雙人房成人價才能跟其他來源比。
 - **跨幣別一定要換算後才能比**：`_price_rank` 若比 `price` 而不是 `price_twd`，
   379 USD 會勝過 18,000 TWD，整個比價與排序都會反過來。
 - **Windows 終端機預設 cp950**，印 `✓` 會拋 `UnicodeEncodeError` 讓程式在

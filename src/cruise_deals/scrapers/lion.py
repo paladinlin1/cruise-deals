@@ -47,7 +47,7 @@ import httpx
 
 from .. import config, normalize
 from ..models import Deal, utcnow
-from .base import ParseError
+from .base import ParseError, keep_cheapest
 
 log = logging.getLogger(__name__)
 
@@ -76,9 +76,6 @@ _MARKETING_RE = re.compile(r"航次|航程|出遊|連假|假期|優惠|折\$?\d|
 _SEA_RE = re.compile(r"海上|公海")
 _ROUTE_RE = re.compile(r"^環")  # 「環日本」是航線描述不是停靠港
 _PORT_SEP_RE = re.compile(r"[．.、・]")
-
-# 給 match_alias 用：找出商品名稱裡的中文船名本身（不是英文對照）
-_SHIP_KEYS = {key: key for key in config.SHIP_ALIASES}
 
 
 def search_body(start: date, end: date, page: int) -> dict[str, Any]:
@@ -315,7 +312,7 @@ def _parse_sailing(
   ship_name, fallback_raw, _ = normalize.split_ship_and_line(
     ship_segment(tour_name) or tour_name
   )
-  ship_raw = normalize.match_alias(tour_name, _SHIP_KEYS) or fallback_raw
+  ship_raw = normalize.ship_alias_key(tour_name) or fallback_raw
   cruise_line = normalize.match_alias(tour_name, config.CRUISE_LINE_ALIASES) or ""
 
   return Deal(
@@ -340,18 +337,6 @@ def _parse_sailing(
   )
 
 
-def dedup(deals: list[Deal]) -> list[Deal]:
-  """來源內去重：同一航次有多個商品（雄獅自家、合作供應商）時只留最便宜的。"""
-  collected: dict[tuple, Deal] = {}
-  for deal in deals:
-    existing = collected.get(deal.dedup_key)
-    if existing is None or (
-      deal.price is not None and (existing.price is None or deal.price < existing.price)
-    ):
-      collected[deal.dedup_key] = deal
-  return list(collected.values())
-
-
 def scrape(
   start: date | None = None,
   lookahead_days: int = config.LOOKAHEAD_DAYS,
@@ -361,7 +346,7 @@ def scrape(
   end = start + timedelta(days=lookahead_days)
 
   groups = fetch_norm_groups(start, end)
-  deals = dedup(parse_norm_groups(groups, start, end))
+  deals = keep_cheapest(parse_norm_groups(groups, start, end))
 
   unmapped = sorted({d.ship_name for d in deals if normalize.is_unmapped_ship(d.ship_name)})
   if unmapped:

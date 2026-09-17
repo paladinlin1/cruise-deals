@@ -112,6 +112,8 @@ CRUISE_LINE_ALIASES: dict[str, str] = {
   "名人遊輪": "Celebrity Cruises",
   "MSC郵輪": "MSC Cruises",
   "MSC遊輪": "MSC Cruises",
+  "MSC地中海郵輪": "MSC Cruises",
+  "地中海郵輪": "MSC Cruises",
   "歌詩達": "Costa Cruises",
   "皇家加勒比": "Royal Caribbean International",
   "挪威郵輪": "Norwegian Cruise Line",
@@ -164,6 +166,23 @@ LION_DETAIL_URL = (
 LION_TRIP_TYPE_CRUISE = "01"
 LION_PAGE_SIZE = 100
 
+# 易遊網（Next.js；Incapsula 保護，用 patchright 過一次後其餘請求走 page.request）
+# 列表網址的日期參數有效，otherSaleDts 只會列窗口內的出發日。
+# 出發地只有 KEE（基隆港）／KHH／TPE（桃園機場＝機＋船）／OVERSEA（海外登船），
+# 東京／橫濱出發的藏在 OVERSEA 裡且登船港要從標題猜，目前只收基隆。
+EZTRAVEL_RESULTS_URL = (
+  "https://vacation.eztravel.com.tw/pkgfrn/results/{departure}/{route_code}"
+  "?depDateFrom={start}&depDateTo={end}&pageSize={page_size}"
+)
+EZTRAVEL_INTRO_URL = "https://vacation.eztravel.com.tw/pkgfrn/introduction/{prod_no}/{sale_dt}"
+# 預設一頁只回 12 筆且沒有翻頁參數可用；實測 pageSize 有效，一次要完
+EZTRAVEL_PAGE_SIZE = 100
+EZTRAVEL_DEPARTURE = "KEE"
+EZTRAVEL_DEPARTURE_NAME = "基隆港出發"  # 列表商品的 departArea 寫法
+# 該站沒有「全部航線」的查詢（父代碼 331 會回「系統升級中」），
+# 只能逐個亞洲葉節點航線查：沖繩、九州、韓國、日本環遊、日韓、亞洲多國、海上巡遊。
+EZTRAVEL_ROUTE_CODES: tuple[int, ...] = (332, 310, 311, 312, 313, 315, 323)
+
 # 匯率來源（皆免金鑰）。台銀 rate.bot.com.tw 已上機器人挑戰頁，CI 不可用。
 FX_PRIMARY_URL = "https://open.er-api.com/v6/latest/USD"
 FX_FALLBACK_URL = "https://tw.rter.info/capi.php"
@@ -177,4 +196,4 @@ USER_AGENT = (
 )
 
 # 所有可用來源名稱（CLI --sources 用）
-ALL_SOURCES = ("icruise", "expedia", "cruisedirect", "asiayo", "bwt", "lion")
+ALL_SOURCES = ("icruise", "expedia", "cruisedirect", "asiayo", "bwt", "lion", "eztravel")
