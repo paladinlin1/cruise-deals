@@ -10,9 +10,14 @@ import traceback
 from collections.abc import Callable
 from dataclasses import dataclass, field
 
+from datetime import date, timedelta
+from typing import TypeVar
+
 from ..models import Deal
 
 log = logging.getLogger(__name__)
+
+T = TypeVar("T")
 
 # 代理設定的寫法：[scheme://]host:port
 _PROXY_RE = re.compile(
@@ -106,6 +111,38 @@ def run_scraper(source: str, fn: Callable[[], list[Deal]]) -> ScrapeResult:
     ok=True,
     duration_s=time.monotonic() - started,
   )
+
+
+def with_retry(fn: Callable[[], T], attempts: int = 3, delay_s: float = 2.0) -> T:
+  """重試包裝：來源站會間歇性回 404／5xx，無人值守排程需自行重試。
+
+  用遞增延遲，最後一次仍失敗才把例外往上拋。
+  """
+  last_exc: Exception | None = None
+  for attempt in range(1, attempts + 1):
+    try:
+      return fn()
+    except Exception as exc:  # noqa: BLE001 - 由呼叫端決定如何處理
+      last_exc = exc
+      if attempt < attempts:
+        log.warning("第 %d/%d 次嘗試失敗（%s），稍後重試", attempt, attempts, exc)
+        if delay_s:
+          time.sleep(delay_s * attempt)
+  assert last_exc is not None
+  raise last_exc
+
+
+def date_chunks(start: date, end: date, chunk_days: int) -> list[tuple[date, date]]:
+  """把日期窗口切成不重疊、不遺漏的連續小段（asiayo 的價格是區間最低價，要切段查）。"""
+  if chunk_days < 1:
+    raise ValueError("chunk_days 必須至少為 1")
+  chunks: list[tuple[date, date]] = []
+  current = start
+  while current <= end:
+    chunk_end = min(current + timedelta(days=chunk_days - 1), end)
+    chunks.append((current, chunk_end))
+    current = chunk_end + timedelta(days=1)
+  return chunks
 
 
 def keep_cheapest(deals: list[Deal]) -> list[Deal]:

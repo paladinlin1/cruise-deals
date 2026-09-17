@@ -1,264 +1,273 @@
-"""icruise 解析器測試：全部跑在存下來的真實 HTML 上，不需要網路。"""
+"""icruise 擷取器測試：跑在存下來的真實 API 回應上，不需要網路。
+
+fixture 是 2026-09-17 對 `get-search-results` 查亞洲（destinations=7）的原始回應：
+  icruise_api_2026-09_p1.json   9 月，55 筆（不足一頁，最後一頁）
+  icruise_api_2026-10_p1.json   10 月第 1 頁，100 筆（滿頁，還有下一頁）
+  icruise_api_2026-10_p2.json   10 月第 2 頁，52 筆
+只把 specialPromos 裡的長篇文案精簡掉，其餘欄位原樣。
+"""
 
 from __future__ import annotations
 
+import json
 from datetime import date
 from decimal import Decimal
 from pathlib import Path
 
+import httpx
 import pytest
 
+from cruise_deals import config
 from cruise_deals.scrapers import icruise
-from cruise_deals.scrapers.base import ParseError
+from cruise_deals.scrapers.base import ParseError, with_retry
 
 FIXTURES = Path(__file__).parent / "fixtures"
 
+# fixture 抓取當下查的窗口
+WINDOW = (date(2026, 9, 17), date(2026, 10, 17))
 
-def load(name: str) -> str:
-  return (FIXTURES / name).read_text(encoding="utf-8")
 
-
-@pytest.fixture(scope="module")
-def keelung_html() -> str:
-  # 基隆單港查詢：5 筆，全部是「洽詢報價」
-  return load("icruise_keelung.html")
+def load(name: str) -> dict:
+  return json.loads((FIXTURES / name).read_text(encoding="utf-8"))
 
 
 @pytest.fixture(scope="module")
-def asia_html() -> str:
-  # 亞洲全區查詢：25 筆（分頁上限），含真實價格
-  return load("icruise_asia.html")
+def september() -> list[dict]:
+  return icruise.extract_results(load("icruise_api_2026-09_p1.json"))
 
 
-class TestMatchedCount:
-  def test_reads_total_from_matched_text(self, asia_html):
-    assert icruise.matched_count(asia_html) == 119
-
-  def test_keelung_page_total(self, keelung_html):
-    assert icruise.matched_count(keelung_html) == 5
-
-  def test_missing_matched_text_returns_zero(self):
-    assert icruise.matched_count("<html><body>nothing</body></html>") == 0
+@pytest.fixture(scope="module")
+def october() -> list[dict]:
+  return icruise.extract_results(load("icruise_api_2026-10_p1.json")) + icruise.extract_results(
+    load("icruise_api_2026-10_p2.json")
+  )
 
 
-class TestParseSearchPage:
-  def test_parses_every_row(self, keelung_html):
-    assert len(icruise.parse_search_page(keelung_html)) == 5
-
-  def test_first_row_fields(self, keelung_html):
-    deal = icruise.parse_search_page(keelung_html)[0]
-    assert deal.source == "icruise"
-    assert deal.sail_date == date(2026, 8, 16)
-    assert deal.depart_port == "Keelung"
-    assert deal.depart_port_raw == "Keelung (Taipei), Taiwan"
-    assert deal.arrive_port == "Keelung (Taipei), Taiwan"
-    assert deal.ship_name == "Costa Serena"
-    assert deal.cruise_line == "Costa Cruises"
-    assert deal.nights == 3
-    assert deal.price is None  # <h2 class="noprice">Pricing On<br>Request</h2>
-    assert deal.currency == "USD"
-
-  def test_ports_of_call(self, keelung_html):
-    deal = icruise.parse_search_page(keelung_html)[0]
-    assert deal.ports_of_call == (
-      "Keelung (Taipei)", "Naha", "Ishigaki", "Keelung (Taipei)",
-    )
-
-  def test_one_way_sailing_has_different_arrive_port(self, keelung_html):
-    # 第 4 筆是基隆到釜山的單程航次
-    deal = icruise.parse_search_page(keelung_html)[3]
-    assert deal.depart_port == "Keelung"
-    assert deal.arrive_port == "Busan (Pusan), South Korea"
-
-  def test_detail_url_is_absolute(self, keelung_html):
-    deal = icruise.parse_search_page(keelung_html)[0]
-    assert deal.detail_url.startswith("https://www.icruise.com/itineraries/")
-    assert "3-night-keelung-to-keelung-cruise_costa-serena_8-16-2026" in deal.detail_url
-
-  def test_all_keelung_rows_have_no_price(self, keelung_html):
-    deals = icruise.parse_search_page(keelung_html)
-    assert all(d.price is None for d in deals)
-
-  def test_asia_page_parses_full_page_of_rows(self, asia_html):
-    # 每頁上限 25 筆
-    assert len(icruise.parse_search_page(asia_html)) == 25
-
-  def test_parses_price_with_thousands_separator(self, asia_html):
-    # 真實資料中的 "$1,742"
-    yokohama = [
-      d for d in icruise.parse_search_page(asia_html) if d.depart_port == "Yokohama"
-    ]
-    assert len(yokohama) == 1
-    assert yokohama[0].price == Decimal("1742")
-    assert yokohama[0].ship_name == "Diamond Princess"
-    assert yokohama[0].sail_date == date(2026, 9, 5)
-
-  def test_scraped_at_is_timezone_aware(self, keelung_html):
-    deal = icruise.parse_search_page(keelung_html)[0]
-    assert deal.scraped_at.tzinfo is not None
+def item(**overrides) -> dict:
+  """建一筆最小的 API 結果（以真實的鑽石公主號 9/22 為底），只覆寫關心的欄位。"""
+  base = {
+    "id": 14279539,
+    "cruiseLineLogo": "https://d23n7ahjfnjotp.cloudfront.net/imgs/client/logos/120w/new/15_120.gif",
+    "itineraryName": "9 Night Okinawa and Taiwan Cruise",
+    "numberOfDaysOrNights": 9,
+    "dayOrNight": "N",
+    "shipName": "Diamond Princess",
+    "ports": ["Yokohama", " Keelung (Taipei)", " Ishigaki", " Okinawa", " Yokohama"],
+    "departurePort": "Yokohama",
+    "returnPort": " Yokohama",
+    "sailingDate": "Sep 22, 2026",
+    "metaName": "Balcony",
+    "price": 1299,
+    "totalPerPerson": 1299,
+    "cruiseOnly": True,
+    "canBook": True,
+  }
+  base.update(overrides)
+  return base
 
 
-class TestFilterTargetPorts:
-  def test_keeps_only_target_departure_ports(self, asia_html):
-    deals = icruise.parse_search_page(asia_html)
-    filtered = icruise.filter_target_ports(deals)
-    assert len(filtered) == 1
-    assert filtered[0].depart_port == "Yokohama"
+class TestSearchBody:
+  def test_queries_asia_for_one_month_at_a_time(self):
+    body = icruise.build_search_body("2026-10", page=2)
+    assert body["destinations"] == config.ICRUISE_DESTINATION_ASIA == "7"
+    assert body["date"] == "2026-10"
+    assert body["page"] == 2
+    assert body["numberOfRecords"] == config.ICRUISE_PAGE_SIZE
+    assert body["brand"] == "IC"
 
-  def test_keeps_all_when_every_row_matches(self, keelung_html):
-    deals = icruise.parse_search_page(keelung_html)
-    assert len(icruise.filter_target_ports(deals)) == 5
+  def test_months_covering_the_window(self):
+    assert icruise.months_covering(date(2026, 9, 17), date(2026, 10, 17)) == ["2026-09", "2026-10"]
+    assert icruise.months_covering(date(2026, 10, 1), date(2026, 10, 31)) == ["2026-10"]
+    assert icruise.months_covering(date(2026, 12, 20), date(2027, 1, 19)) == ["2026-12", "2027-01"]
 
 
-class TestSanityCheck:
-  """版面改版或被擋時要大聲失敗，不能安靜地回傳空清單。
+class TestResponseShape:
+  def test_missing_search_results_is_parse_error(self):
+    with pytest.raises(ParseError, match="searchResults"):
+      icruise.extract_results({"message": "oops"})
 
-  2026-09-11 起 GitHub Actions 上隔三差五回 0 筆（本機同一時間有 30 筆），
-  就是因為「拿到的根本不是搜尋結果頁」被當成「今天真的沒有航次」，
-  把 icruise 前一天的 20 多筆整批洗掉。
-  """
-
-  def test_raises_when_page_claims_results_but_none_parsed(self):
-    html = (
-      '<html><body><span class="matched-text">42 Matched Sailings</span>'
-      '<table id="results_table"></table></body></html>'
-    )
+  def test_non_object_response_is_parse_error(self):
     with pytest.raises(ParseError):
-      icruise.parse_search_page(html)
+      icruise.extract_results("<html>maintenance</html>")
 
-  def test_page_that_says_zero_matched_is_empty(self):
-    html = (
-      '<html><body><span class="matched-text">0 Matched Sailings</span>'
-      "</body></html>"
+  def test_real_pages_load(self, september, october):
+    assert len(september) == 55
+    assert len(october) == 152
+
+
+class TestParseItem:
+  def test_maps_every_field(self):
+    deal = icruise.parse_item(item(), None)
+    assert deal is not None
+    assert deal.source == "icruise"
+    assert deal.sail_date == date(2026, 9, 22)
+    assert deal.nights == 9
+    assert deal.ship_name == "Diamond Princess"
+    assert deal.cruise_line == "Princess Cruises"  # logo 15
+    assert deal.depart_port == "Yokohama"
+    assert deal.depart_port_raw == "Yokohama"
+    assert deal.arrive_port == "Yokohama"
+    assert deal.ports_of_call == (
+      "Yokohama", "Keelung (Taipei)", "Ishigaki", "Okinawa", "Yokohama"
     )
-    assert icruise.parse_search_page(html) == []
+    assert deal.price == Decimal("1299")
+    assert deal.currency == "USD"
+    assert deal.price_note == "每人最低價（Balcony）"
+    assert deal.detail_url == "https://www.icruise.com/c/itinDetail.php?CruiseItineraryID=14279539"
 
-  def test_real_no_results_page_is_empty(self):
-    # 查 2030 年的區間，該站回「No results found」——這才是真正的 0 筆
-    html = load("icruise_no_results.html")
-    assert icruise.page_state(html) == "empty"
-    assert icruise.parse_search_page(html) == []
+  def test_keelung_departure_is_recognised(self):
+    deal = icruise.parse_item(item(departurePort="Keelung (Taipei)"), None)
+    assert deal.depart_port == "Keelung"
+    assert deal.depart_port_raw == "Keelung (Taipei)"
 
-  def test_page_without_results_or_no_results_marker_is_unrecognised(self):
-    # 沒有結果表、沒有筆數、也沒有「No results found」——這不是搜尋結果頁，
-    # 可能是被擋、錯誤頁或改版，不能當成 0 筆
-    html = "<html><body><h1>Access Denied</h1></body></html>"
-    assert icruise.page_state(html) == "unknown"
-    with pytest.raises(ParseError, match="不是搜尋結果頁"):
-      icruise.parse_search_page(html)
+  def test_one_way_keeps_the_raw_return_port(self):
+    deal = icruise.parse_item(
+      item(departurePort="Tokyo", returnPort=" Seoul (Incheon)"), None
+    )
+    assert (deal.depart_port, deal.arrive_port) == ("Tokyo", "Seoul (Incheon)")
 
-  def test_results_page_state(self, keelung_html):
-    assert icruise.page_state(keelung_html) == "results"
+  def test_minus_99_means_price_on_request(self):
+    deal = icruise.parse_item(item(price=-99, totalPerPerson=-99), None)
+    assert deal.price is None
+
+  def test_day_count_is_converted_to_nights(self):
+    assert icruise.parse_item(item(numberOfDaysOrNights=10, dayOrNight="D"), None).nights == 9
+
+  def test_missing_cabin_name_still_has_a_note(self):
+    deal = icruise.parse_item(item(metaName=None), None)
+    assert deal.price_note == "每人最低價"
+
+  def test_unknown_cruise_line_logo_leaves_the_line_blank(self):
+    deal = icruise.parse_item(item(cruiseLineLogo=".../logos/120w/new/999_120.gif"), None)
+    assert deal.cruise_line == ""
+
+  def test_unparseable_date_yields_none(self):
+    assert icruise.parse_item(item(sailingDate="soon"), None) is None
+
+  def test_package_with_air_is_skipped(self):
+    # cruiseOnly=False 是含機票／陸上行程的套裝，價格跟其他來源的船票價不能比
+    assert icruise.parse_item(item(cruiseOnly=False), None) is None
 
 
-class TestErrorPageRetry:
-  """CI 上實際拿到的是該站自己的錯誤頁（「Oh no! There seems to be a problem…
-  There was a problem when creating your account」，HTTP 200、有導覽列、沒有結果區塊）。
-  這種頁面重送一次通常就好了，所以先重試，重試用完才失敗並存現場。"""
+class TestCruiseLineLogos:
+  def test_logo_id_is_read_from_the_image_url(self):
+    assert icruise.logo_id("https://x/imgs/client/logos/120w/new/28_120.gif") == "28"
+    assert icruise.logo_id("") is None
+    assert icruise.logo_id(None) is None
 
-  ERROR_PAGE = load("icruise_error_page.html")
+  def test_every_line_seen_in_asia_is_mapped(self, september, october):
+    # 對照表是從真實回應整理的；有新船公司時這個測試會告訴你該補哪個 id
+    ids = {icruise.logo_id(x.get("cruiseLineLogo")) for x in september + october}
+    assert ids <= set(icruise.CRUISE_LINE_BY_LOGO_ID)
 
-  def test_real_ci_error_page_is_unrecognised(self):
-    assert icruise.page_state(self.ERROR_PAGE) == "unknown"
+  def test_names_align_with_cruisedirect(self):
+    from cruise_deals.scrapers.cruisedirect import CRUISELINE_NAMES
 
-  def test_error_page_is_retried_until_a_results_page_comes_back(self, keelung_html):
-    import httpx
+    # 網頁的「船公司」篩選是照字串分組的，同一家公司兩種寫法會變成兩個選項
+    shared = set(CRUISELINE_NAMES.values()) & set(icruise.CRUISE_LINE_BY_LOGO_ID.values())
+    expected = {"Princess Cruises", "MSC Cruises", "Celebrity Cruises", "Norwegian Cruise Line"}
+    assert expected <= shared
 
-    responses = [self.ERROR_PAGE, self.ERROR_PAGE, keelung_html]
-    calls = []
 
-    def handler(request):
-      calls.append(request.url)
-      return httpx.Response(200, text=responses[len(calls) - 1])
+class TestWindowFilter:
+  def test_only_target_ports_inside_the_window_are_kept(self, september, october):
+    deals = icruise.deals_in_window(september + october, *WINDOW)
+
+    assert deals
+    assert {d.depart_port for d in deals} <= {"Keelung", "Tokyo", "Yokohama"}
+    assert all(WINDOW[0] <= d.sail_date <= WINDOW[1] for d in deals)
+    # 10/17 之後的 10 月航次要被窗口切掉（fixture 裡確實有這種目標港航次）
+    parsed = [icruise.parse_item(x, None) for x in october]
+    late = [
+      d for d in parsed
+      if d and d.depart_port in ("Tokyo", "Yokohama") and d.sail_date > WINDOW[1]
+    ]
+    assert late
+    assert not any(d.sail_date > WINDOW[1] for d in deals)
+
+  def test_same_sailing_on_two_pages_is_deduplicated(self):
+    deals = icruise.deals_in_window([item(), item()], *WINDOW)
+    assert len(deals) == 1
+
+  def test_empty_asia_is_a_site_change(self):
+    # 亞洲一整個月不可能 0 筆；整批空代表 API 改了（過濾後 0 筆才是正常）
+    with pytest.raises(ParseError, match="0"):
+      icruise.deals_in_window([], *WINDOW)
+
+  def test_no_target_port_sailings_is_not_an_error(self):
+    singapore = item(departurePort="Singapore", returnPort=" Singapore")
+    assert icruise.deals_in_window([singapore], *WINDOW) == []
+
+
+class TestFetchMonth:
+  """一個月一次查詢，翻頁到不足一頁為止；壞回應要重試。"""
+
+  def pages(self, *names: str) -> list[dict]:
+    return [load(n) for n in names]
+
+  def test_follows_pagination_until_a_short_page(self):
+    responses = self.pages("icruise_api_2026-10_p1.json", "icruise_api_2026-10_p2.json")
+    bodies: list[dict] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+      bodies.append(json.loads(request.content))
+      return httpx.Response(200, json=responses[len(bodies) - 1])
 
     client = httpx.Client(transport=httpx.MockTransport(handler))
-    html = icruise.fetch_page(client, date(2026, 9, 17), date(2026, 9, 21), delay_s=0)
+    items = icruise.fetch_month(client, "2026-10", delay_s=0)
 
-    assert len(calls) == 3
-    assert icruise.page_state(html) == "results"
+    assert len(items) == 152
+    assert [b["page"] for b in bodies] == [1, 2]
+    assert all(b["date"] == "2026-10" for b in bodies)
 
-  def test_error_page_on_every_attempt_fails_loudly_and_saves_the_page(
-    self, tmp_path, monkeypatch
-  ):
-    import httpx
+  def test_short_first_page_stops_immediately(self):
+    (payload,) = self.pages("icruise_api_2026-09_p1.json")
+    calls = 0
 
-    from cruise_deals import config
+    def handler(request: httpx.Request) -> httpx.Response:
+      nonlocal calls
+      calls += 1
+      return httpx.Response(200, json=payload)
 
-    monkeypatch.setattr(config, "DEBUG_DIR", tmp_path / "debug")
+    client = httpx.Client(transport=httpx.MockTransport(handler))
+    assert len(icruise.fetch_month(client, "2026-09", delay_s=0)) == 55
+    assert calls == 1
+
+  def test_stops_at_the_page_cap(self):
+    full = load("icruise_api_2026-10_p1.json")
+    calls = 0
+
+    def handler(request: httpx.Request) -> httpx.Response:
+      nonlocal calls
+      calls += 1
+      return httpx.Response(200, json=full)  # 每頁都滿頁
+
+    client = httpx.Client(transport=httpx.MockTransport(handler))
+    icruise.fetch_month(client, "2026-10", delay_s=0)
+    assert calls == icruise.MAX_PAGES
+
+  def test_transient_5xx_is_retried(self):
+    (payload,) = self.pages("icruise_api_2026-09_p1.json")
+    calls = 0
+
+    def handler(request: httpx.Request) -> httpx.Response:
+      nonlocal calls
+      calls += 1
+      return httpx.Response(503) if calls == 1 else httpx.Response(200, json=payload)
+
+    client = httpx.Client(transport=httpx.MockTransport(handler))
+    assert len(icruise.fetch_month(client, "2026-09", delay_s=0)) == 55
+    assert calls == 2
+
+  def test_non_json_response_is_a_parse_error_after_retries(self):
     client = httpx.Client(
-      transport=httpx.MockTransport(lambda r: httpx.Response(200, text=self.ERROR_PAGE))
+      transport=httpx.MockTransport(lambda r: httpx.Response(200, text="<html>維護中</html>"))
     )
-
-    with pytest.raises(ParseError, match="不是搜尋結果頁") as info:
-      icruise.fetch_page(client, date(2026, 9, 17), date(2026, 9, 21), delay_s=0)
-
-    saved = tmp_path / "debug" / "icruise_2026-09-17_2026-09-21.html"
-    assert saved.exists()
-    assert str(saved) in str(info.value)
-
-
-class TestProxy:
-  """GitHub Actions 的 IP 連續三次都拿到「creating your account」錯誤頁（本機正常），
-  是 IP 被對方拒絕，不是暫時性錯誤；比照 cruisedirect／eztravel 走家用路由器的通道。"""
-
-  def test_direct_connection_when_env_not_set(self, monkeypatch):
-    monkeypatch.delenv("ICRUISE_PROXY", raising=False)
-    assert "proxy" not in icruise.client_options()
-
-  def test_tunnel_is_passed_to_httpx(self, monkeypatch):
-    monkeypatch.setenv("ICRUISE_PROXY", "socks5h://127.0.0.1:1080")
-    options = icruise.client_options()
-    assert options["proxy"] == "socks5://127.0.0.1:1080"
-    assert options["headers"]["User-Agent"]  # 其餘設定不受影響
-
-  def test_socks_support_is_installed(self):
-    # httpx 的 SOCKS 支援是選配（socksio），沒裝會在 CI 建立 client 時才炸
-    import httpx
-
-    httpx.Client(proxy="socks5://127.0.0.1:1080").close()
-
-
-class TestDebugSnapshot:
-  def test_unrecognised_page_is_saved_for_diagnosis(self, tmp_path, monkeypatch):
-    # CI 會把 debug/ 當成 artifact 上傳；沒有現場就永遠不知道對方回了什麼
-    from cruise_deals import config
-
-    monkeypatch.setattr(config, "DEBUG_DIR", tmp_path / "debug")
-    path = icruise.save_debug(date(2026, 9, 17), date(2026, 9, 21), "<html>Access Denied</html>")
-    assert path == tmp_path / "debug" / "icruise_2026-09-17_2026-09-21.html"
-    assert path.read_text(encoding="utf-8") == "<html>Access Denied</html>"
-
-
-class TestBuildSearchUrl:
-  def test_formats_dates_as_month_day_year(self):
-    params = icruise.build_search_params(date(2026, 8, 13), date(2026, 9, 12))
-    assert params["Sail_DateFrom"] == "08/13/2026"
-    assert params["Sail_DateTo"] == "09/12/2026"
-
-  def test_includes_asia_destination_and_vacation_type(self):
-    params = icruise.build_search_params(date(2026, 8, 13), date(2026, 9, 12))
-    assert params["WMPHDestinationCodeSub"] == 7
-    assert params["VacationType"] == 1
-
-
-class TestBuildSearchUrl2:
-  """實測發現：日期中的斜線被編碼成 %2F 時該站會間歇性回 404，
-  故 URL 必須保留字面斜線（與瀏覽器送出的形式一致）。"""
-
-  def test_query_keeps_literal_slashes(self):
-    url = icruise.build_search_url(date(2026, 8, 13), date(2026, 9, 12))
-    assert "Sail_DateFrom=08/13/2026" in url
-    assert "Sail_DateTo=09/12/2026" in url
-    assert "%2F" not in url
-
-  def test_url_points_at_search_endpoint(self):
-    url = icruise.build_search_url(date(2026, 8, 13), date(2026, 9, 12))
-    assert url.startswith("https://www.icruise.com/c/src.php?")
+    with pytest.raises(ParseError, match="JSON"):
+      icruise.fetch_month(client, "2026-09", delay_s=0)
 
 
 class TestFetchWithRetry:
-  """該站會間歇性回 404／5xx，無人值守的每日排程必須能自行重試。"""
-
   def test_returns_result_after_transient_failures(self):
     attempts = []
 
@@ -268,7 +277,7 @@ class TestFetchWithRetry:
         raise RuntimeError("transient")
       return "ok"
 
-    assert icruise.with_retry(flaky, attempts=3, delay_s=0) == "ok"
+    assert with_retry(flaky, attempts=3, delay_s=0) == "ok"
     assert len(attempts) == 3
 
   def test_reraises_after_exhausting_attempts(self):
@@ -279,36 +288,5 @@ class TestFetchWithRetry:
       raise RuntimeError("permanent")
 
     with pytest.raises(RuntimeError, match="permanent"):
-      icruise.with_retry(always_fails, attempts=3, delay_s=0)
+      with_retry(always_fails, attempts=3, delay_s=0)
     assert len(calls) == 3
-
-  def test_succeeds_first_try_without_extra_calls(self):
-    calls = []
-
-    def fine():
-      calls.append(1)
-      return "ok"
-
-    assert icruise.with_retry(fine, attempts=3, delay_s=0) == "ok"
-    assert len(calls) == 1
-
-
-class TestDateChunks:
-  """每頁 25 筆上限無法用參數放寬，故切分日期窗口。"""
-
-  def test_covers_whole_window_without_gaps(self):
-    chunks = icruise.date_chunks(date(2026, 8, 13), date(2026, 9, 12), chunk_days=5)
-    assert chunks[0][0] == date(2026, 8, 13)
-    assert chunks[-1][1] == date(2026, 9, 12)
-    for (_, prev_end), (next_start, _) in zip(chunks, chunks[1:]):
-      # 下一段必須緊接前一段，中間不能漏日期
-      assert (next_start - prev_end).days == 1
-
-  def test_chunk_size_respected(self):
-    chunks = icruise.date_chunks(date(2026, 8, 1), date(2026, 8, 30), chunk_days=5)
-    assert all((end - start).days + 1 <= 5 for start, end in chunks)
-
-  def test_single_day_window(self):
-    assert icruise.date_chunks(date(2026, 8, 1), date(2026, 8, 1), chunk_days=5) == [
-      (date(2026, 8, 1), date(2026, 8, 1))
-    ]

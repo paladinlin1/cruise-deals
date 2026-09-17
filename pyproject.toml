@@ -4,8 +4,7 @@ version = "0.1.0"
 description = "自動擷取郵輪 last minute deals（基隆／東京／橫濱出發）並整理成表格"
 requires-python = ">=3.11"
 dependencies = [
-  # [socks]：icruise 在 GitHub Actions 上要走家用路由器的 SOCKS5 通道（見 README）
-  "httpx[socks]>=0.27",
+  "httpx>=0.27",
   "selectolax>=0.3.21",
   # 百威旅遊要自建 SSL context（見 scrapers/bwt.py），直接 import certifi，
   # 不靠 httpx 的相依關係間接帶進來

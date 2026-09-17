@@ -14,7 +14,7 @@
   - **`price` 是「查詢區間內所有出發日的最低價」，不是某一天的價格。**
     同一筆 51219 查 08/17–09/16 顯示 18,000，查 08/21–08/25（只含 08/23）
     卻是 21,583。所以必須**切段查詢**才有正確的逐日價格，
-    這裡沿用 icruise 那套 date_chunks（CHUNK_DAYS=5）。
+    這裡用 base.date_chunks 切段查（CHUNK_DAYS=5）。
   - **`startDate == endDate` 時該站會忽略上界**，回傳往後好幾個月的出發日，
     所以不能用「一天一查」來取得精確價格。
   - 使用者常見的分享網址會帶 `cruiseIds` / `companyIds` 篩選，
@@ -45,7 +45,7 @@ from ..models import Deal, utcnow
 from .base import ParseError
 
 # 這兩個是通用的日期切段與重試工具，先在 icruise 寫出來的，直接沿用不重寫
-from .icruise import date_chunks, with_retry
+from .base import date_chunks, with_retry
 
 log = logging.getLogger(__name__)
 

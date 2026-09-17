@@ -20,7 +20,7 @@
 
 | 來源 | 幣別 | 狀態 | 說明 |
 |---|---|---|---|
-| **icruise.com** | USD | ✅ 正常 | Server-rendered HTML，`httpx` + `selectolax` 直接解析 |
+| **icruise.com** | USD | ✅ 正常 | 新版搜尋頁背後的 JSON API（Arrivia），`httpx` 直接 POST，不需授權 |
 | **expediacruises.com** | USD | ✅ 正常 | Odysseus Swift API，用瀏覽器取得授權標頭後呼叫 JSON API |
 | **cruisedirect.com** | USD | ✅ 正常 | Cloudflare 保護，用 SeleniumBase CDP Mode 通過 |
 | **asiayo.com** | TWD | ✅ 正常 | Next.js 伺服器渲染，`httpx` 讀 RSC payload，不需瀏覽器 |
@@ -63,9 +63,9 @@
 這是 IP 信譽評分造成的，不是程式寫法問題。解法是讓流量從住宅 IP 出去：
 在 GitHub Actions 裡透過 SSH 連到家用路由器開一條 SOCKS5 通道。
 
-只有 cruisedirect（`CRUISEDIRECT_PROXY`）、易遊網（`EZTRAVEL_PROXY`）與
-icruise（`ICRUISE_PROXY`）走這條通道，其餘來源照舊直連，不佔用家用頻寬。
-沒設定 `ROUTER_*` secrets 時整個步驟會跳過，三者直連並如常降級。
+只有 cruisedirect（`CRUISEDIRECT_PROXY`）與易遊網（`EZTRAVEL_PROXY`）走這條通道，
+其餘來源照舊直連，不佔用家用頻寬。
+沒設定 `ROUTER_*` secrets 時整個步驟會跳過，兩者直連並如常降級。
 
 ##### 路由器端設定
 
@@ -412,7 +412,7 @@ src/cruise_deals/
 ├── fx.py                # USD→TWD 匯率取得與換算
 ├── scrapers/
 │   ├── base.py          # ScrapeResult、ParseError／BlockedError、優雅降級
-│   ├── icruise.py       # httpx + selectolax
+│   ├── icruise.py       # httpx + Arrivia 搜尋 JSON API
 │   ├── expedia.py       # patchright 取得授權標頭 + JSON API
 │   ├── cruisedirect.py  # SeleniumBase CDP Mode 穿過 Cloudflare
 │   ├── asiayo.py        # httpx + Next.js RSC payload
@@ -432,20 +432,13 @@ scripts/
 
 這些是實際打過真實請求才發現的，記錄下來免得日後重踩：
 
-- **icruise 每頁固定 25 筆**，且 `PageNo` / `strPage` / `page` / `CurrentPage` /
-  `strResultsPerPage` 等分頁參數由 GET 傳入**全部無效**。
-  解法：把日期窗口切成 5 天一段，讓每段結果自然低於上限。
-- **icruise 的日期參數不能做 URL 編碼**。`08/13/2026` 被編成 `08%2F13%2F2026`
-  時會**間歇性**回 404。解法：自行組 query string 保留字面斜線。
-- **icruise 會間歇性回 404／逾時**，與參數無關。解法：三次遞增延遲重試。
-- **icruise 在 GitHub Actions 上會間歇性拿到 HTTP 200 的自家錯誤頁**
-  （「Oh no! There seems to be a problem… creating your account」，2026-09-11 起
-  隔三差五 0 筆，本機同一時間 30 筆）。頁面要分三種：有結果表、真正的
-  「No results found」、兩者都不是——第三種以前被當成 0 筆，把前一天的資料整批
-  洗掉。現在第三種先重試，重試用完才拋 ParseError（沿用前次資料）並把現場存進
-  `debug/` 供 artifact 診斷。實測（2026-09-17）CI 上三次都拿到同一頁、本機正常，
-  是對方拒絕資料中心 IP 而不是暫時性錯誤，所以 icruise 也走 `ICRUISE_PROXY` 的通道
-  （httpx 走 SOCKS 需要 `httpx[socks]`）。
+- **icruise 的搜尋頁正在分批換成 Arrivia 的 SPA**（2026-09 起同一網址有的連線拿到舊的
+  server-rendered 結果表、有的拿到只剩空殼的新模板）。GitHub Actions 隔三差五拿到新模板，
+  舊的 HTML 解析就「成功地」回 0 筆，把前一天的資料整批洗掉——**成功的 0 筆比失敗更糟**。
+  現在直接打新模板用的 `get-search-results` API（不需授權），只認 `destinations`＝亞洲
+  與月份，出發港與日期窗口在本地過濾；`price == -99` 是洽詢報價、`cruiseOnly == False`
+  是含機票的套裝不收；船公司只給 logo 圖檔，靠 `CRUISE_LINE_BY_LOGO_ID` 對照。
+- **icruise 會間歇性回 404／5xx**，與參數無關。解法：三次遞增延遲重試。
 - **Expedia 那個網址不回 JSON**，只是 12KB 的 SPA 空殼。真資料在
   `POST /nitroapi/v2/cruise`，需要 `uniquetid` 授權標頭（由頁面 JS 動態產生）。
   解法：用瀏覽器載入頁面、攔下 SPA 自己的請求標頭再沿用。

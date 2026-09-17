@@ -1,17 +1,29 @@
-"""icruise.com 擷取器。
+"""icruise.com 擷取器（走新版搜尋頁背後的 JSON API）。
 
-該站是 server-rendered HTML，不需要瀏覽器，用 httpx + selectolax 即可。
+該站 2026-09 起把搜尋頁分批換成 Arrivia 的 Angular SPA：同一個網址，有的連線
+拿到舊的 server-rendered 結果表、有的拿到只剩空殼的新模板（結果由前端打 API 渲染）。
+GitHub Actions 隔三差五拿到新模板，舊的 HTML 解析就「成功地」回 0 筆，把前一天的
+資料整批洗掉。舊模板遲早會消失，所以改直接打新模板用的 API：
 
-已實測的兩個限制：
-  1. 每頁固定 25 筆，且 PageNo / strPage / page / CurrentPage /
-     strResultsPerPage 等分頁參數由 GET 傳入全部無效。
-  2. Sail_DateFrom / Sail_DateTo 接受 MM/DD/YYYY 且確實生效。
-所以改用「切分日期窗口」讓每段結果自然低於 25 筆上限。
+  POST https://shared-components-api-wa-prod-usc.azurewebsites.net
+       /api/cruise/search/get-search-results
+  {"destinations": "7", "date": "2026-10", "numberOfRecords": 100, "page": 1,
+   "brand": "IC", "vacationType": "1,2", 其餘欄位空字串}
 
-另外要分清楚三種頁面：有結果表、真正的「No results found」、以及**兩者都不是**
-（被擋、錯誤頁、改版）。2026-09-11 起 GitHub Actions 上隔三差五回 0 筆而本機
-同一時間有 30 筆，就是第三種被當成第二種，把前一天的 20 多筆整批洗掉。
-第三種要拋 ParseError 並把現場存進 debug/（CI 會上傳成 artifact）。
+實測（2026-09-17）**不需要授權**，回 `{"searchResults": [...]}`：
+
+  .sailingDate          "Oct 20, 2026"
+  .numberOfDaysOrNights / .dayOrNight   夜數（"N"）或天數（"D"）
+  .shipName / .ports / .departurePort / .returnPort
+  .price                每人最低價；**-99 代表洽詢報價**
+  .metaName             最低價的艙等（Interior／Balcony…，可能缺）
+  .cruiseOnly           False 是含機票／陸上行程的套裝，不收
+  .cruiseLineLogo       只給船公司 logo 圖檔，沒有名稱——用 CRUISE_LINE_BY_LOGO_ID 對照
+  .id                   詳情頁 /c/itinDetail.php?CruiseItineraryID={id}（會轉到原本的 /itineraries/…）
+
+篩選只認 `destinations`（7＝亞洲）與 `date`（月份），`ports` 要另一套代碼且
+篩選矩陣端點對零售站回 500，所以出發港與日期窗口在本地過濾。
+`numberOfRecords` 上限在 100～500 之間（500 回空），用 100 翻頁到不足一頁為止。
 """
 
 from __future__ import annotations
@@ -19,307 +31,226 @@ from __future__ import annotations
 import logging
 import re
 import time
-from datetime import date, timedelta
-from pathlib import Path
-from typing import TYPE_CHECKING, Any, Literal, TypeVar
+from datetime import date, datetime, timedelta
+from typing import Any
 
 import httpx
-from selectolax.parser import HTMLParser, Node
 
 from .. import config, normalize
 from ..models import Deal, utcnow
-from .base import ParseError, proxy_from_env
-
-if TYPE_CHECKING:  # pragma: no cover
-  from collections.abc import Callable
+from .base import ParseError, keep_cheapest, with_retry
 
 log = logging.getLogger(__name__)
 
-T = TypeVar("T")
-
 SOURCE = "icruise"
 
-_MATCHED_RE = re.compile(r"([\d,]+)\s+Matched\s+Sailing", re.I)
-# 真正沒有結果時 #searchresults_wrapper 裡的字樣（實測 2026-09-17）
-_NO_RESULTS_RE = re.compile(r"No\s+results\s+found", re.I)
+# 翻頁上限：亞洲一個月約 150 筆、每頁 100，兩頁就夠；這是防 API 回錯值時無限翻下去
+MAX_PAGES = 20
 
-PageState = Literal["results", "empty", "unknown"]
+# 洽詢報價的哨兵值
+PRICE_ON_REQUEST = -99
+
+# 船公司 logo 圖檔 id -> 名稱。API 只給圖檔，這張表是從 2026-09-17 亞洲全部結果整理的，
+# 寫法對齊 scrapers/cruisedirect.py 的 CRUISELINE_NAMES（網頁的「船公司」篩選照字串分組）。
+# 對不到的 id 會留空並記警告，看到警告就來補。
+CRUISE_LINE_BY_LOGO_ID: dict[str, str] = {
+  "10": "Carnival Cruise Line",
+  "11": "Celebrity Cruises",
+  "13": "Holland America Line",
+  "14": "Norwegian Cruise Line",
+  "15": "Princess Cruises",
+  "16": "Regent Seven Seas Cruises",
+  "17": "Royal Caribbean International",
+  "18": "Windstar Cruises",
+  "19": "Costa Cruises",
+  "21": "Seabourn",
+  "22": "Silversea",
+  "23": "Disney Cruise Line",
+  "27": "Viking",  # 維京河輪
+  "28": "MSC Cruises",
+  "29": "Oceania Cruises",
+  "36": "AmaWaterways",
+  "42": "Uniworld",
+  "52": "Azamara",
+  "53": "Avalon Waterways",
+  "54": "Ponant",
+  "56": "Lindblad Expeditions",
+  "62": "Viking",  # 維京海洋
+  "67": "Scenic",
+  "75": "Emerald Cruises",
+  "76": "The Ritz-Carlton Yacht Collection",
+  "127": "Aurora Expeditions",
+}
+
+_LOGO_ID_RE = re.compile(r"/(\d+)_\d+\.\w+$")
 
 
-def build_search_params(start: date, end: date) -> dict[str, str | int]:
-  """組出 icruise 搜尋參數（格式已實測有效）。"""
+def build_search_body(month: str, page: int) -> dict[str, Any]:
+  """組出跟新版搜尋頁一模一樣的查詢 body（欄位照送，空的給空字串）。"""
   return {
-    "VacationType": config.ICRUISE_VACATION_TYPE,
-    "WMPHDestinationCodeSub": config.ICRUISE_DESTINATION_ASIA,
-    "Sail_DateFrom": start.strftime("%m/%d/%Y"),
-    "Sail_DateTo": end.strftime("%m/%d/%Y"),
+    "destinations": config.ICRUISE_DESTINATION_ASIA,
+    "date": month,
+    "ships": "",
+    "numberOfRecords": config.ICRUISE_PAGE_SIZE,
+    "page": page,
+    "ports": "",
+    "cruiseLines": "",
+    "duration": "",
+    "sortBy": "",
+    "brand": config.ICRUISE_BRAND,
+    "vacationType": "1,2",
   }
 
 
-def build_search_url(start: date, end: date) -> str:
-  """組出完整查詢網址，**保留日期中的字面斜線**。
-
-  實測：把 "08/13/2026" 編碼成 "08%2F13%2F2026" 時該站會間歇性回 404，
-  用字面斜線（與瀏覽器送出的形式相同）則穩定回 200。
-  因此這裡自行組 query string，不交給 httpx 的 params 編碼。
-  """
-  params = build_search_params(start, end)
-  query = "&".join(f"{key}={value}" for key, value in params.items())
-  return f"{config.ICRUISE_SEARCH_URL}?{query}"
-
-
-def with_retry(fn: Callable[[], T], attempts: int = 3, delay_s: float = 2.0) -> T:
-  """重試包裝：該站會間歇性回 404／5xx，無人值守排程需自行重試。
-
-  用遞增延遲，最後一次仍失敗才把例外往上拋。
-  """
-  last_exc: Exception | None = None
-  for attempt in range(1, attempts + 1):
-    try:
-      return fn()
-    except Exception as exc:  # noqa: BLE001 - 由呼叫端決定如何處理
-      last_exc = exc
-      if attempt < attempts:
-        log.warning("第 %d/%d 次嘗試失敗（%s），稍後重試", attempt, attempts, exc)
-        if delay_s:
-          time.sleep(delay_s * attempt)
-  assert last_exc is not None
-  raise last_exc
-
-
-def date_chunks(
-  start: date, end: date, chunk_days: int = config.CHUNK_DAYS
-) -> list[tuple[date, date]]:
-  """把日期窗口切成不重疊、不遺漏的連續小段。"""
-  if chunk_days < 1:
-    raise ValueError("chunk_days 必須至少為 1")
-  chunks: list[tuple[date, date]] = []
-  current = start
+def months_covering(start: date, end: date) -> list[str]:
+  """日期窗口涵蓋的月份，API 的 date 參數格式（"2026-10"）。"""
+  months: list[str] = []
+  current = start.replace(day=1)
   while current <= end:
-    chunk_end = min(current + timedelta(days=chunk_days - 1), end)
-    chunks.append((current, chunk_end))
-    current = chunk_end + timedelta(days=1)
-  return chunks
+    months.append(current.strftime("%Y-%m"))
+    current = (current + timedelta(days=32)).replace(day=1)
+  return months
 
 
-def matched_count(html: str) -> int:
-  """讀出頁面宣稱的總筆數（"119 Matched Sailings"）。找不到時回 0。"""
-  match = _MATCHED_RE.search(html)
-  if not match:
-    return 0
-  return int(match.group(1).replace(",", ""))
+def extract_results(payload: Any) -> list[dict[str, Any]]:
+  """從單頁回應取出結果清單。形狀不對就大聲失敗。"""
+  if not isinstance(payload, dict) or "searchResults" not in payload:
+    raise ParseError("icruise 搜尋 API 回應缺少 searchResults——API 可能已改版")
+  return list(payload.get("searchResults") or [])
 
 
-def _text(row: Node, selector: str) -> str:
-  """取節點文字並正規化空白；找不到節點回空字串。"""
-  node = row.css_first(selector)
-  return normalize.clean_text(node.text(separator=" ")) if node else ""
+def logo_id(url: str | None) -> str | None:
+  """從 logo 圖檔網址取出船公司 id：".../logos/120w/new/28_120.gif" -> "28"。"""
+  match = _LOGO_ID_RE.search(url or "")
+  return match.group(1) if match else None
 
 
-def _parse_row(row: Node, scraped_at) -> Deal | None:
-  """解析單一 <tr>。不是結果列（例如表頭）時回 None。"""
-  raw_date = _text(row, "div.celldata.depart h2")
-  if not raw_date:
-    return None  # 表頭或廣告列
+def cruise_line(url: str | None) -> str:
+  """logo 圖檔 -> 船公司名稱；對不到留空（呼叫端會記警告）。"""
+  return CRUISE_LINE_BY_LOGO_ID.get(logo_id(url) or "", "")
 
-  title = _text(row, "div.celldata.itin2 h2")
-  depart_raw = normalize.strip_prefix_label(_text(row, "div.route div.start"))
-  arrive_raw = normalize.strip_prefix_label(_text(row, "div.route div.end"))
 
-  # 夜數優先取「Length」欄，取不到再退回行程標題（"3 Night ... Cruise"）
+def parse_item(item: dict[str, Any], scraped_at: datetime | None) -> Deal | None:
+  """把一筆 API 結果轉成 Deal。不能用的（套裝、日期壞掉）回 None，不讓一筆拖垮整批。"""
+  if not item.get("cruiseOnly", True):
+    return None  # 含機票／陸上行程的套裝，價格跟其他來源的船票價不能比
+
   try:
-    nights = normalize.parse_nights(_text(row, "div.celldata.length h2"))
+    sail_date = datetime.strptime(
+      normalize.clean_text(item.get("sailingDate")), "%b %d, %Y"
+    ).date()
   except ValueError:
-    nights = normalize.parse_nights(title)
+    return None
 
-  price_cell = row.css_first("div.celldata.price")
-  price_text = _text(row, "div.celldata.price h2")
-  price = normalize.parse_price(price_text)
+  count = int(item.get("numberOfDaysOrNights") or 0)
+  nights = count - 1 if item.get("dayOrNight") == "D" else count
 
-  # 價格但書：把 h2 與按鈕文字剔除後剩下的說明（per person / 含稅費…）
-  price_note = ""
-  if price_cell:
-    note = price_cell.text(separator=" ")
-    for junk in (price_text, "Learn More"):
-      if junk:
-        note = note.replace(junk, " ")
-    price_note = normalize.clean_text(note)
-
-  link = row.css_first("div.celldata.price a[href]")
-  href = link.attributes.get("href", "") if link else ""
-  detail_url = f"{config.ICRUISE_BASE}{href.split('?')[0]}" if href else ""
+  depart_raw = normalize.clean_text(item.get("departurePort"))
+  arrive_raw = normalize.clean_text(item.get("returnPort"))
+  raw_price = item.get("price")
+  price = None if raw_price == PRICE_ON_REQUEST else normalize.parse_price(raw_price)
+  cabin = normalize.clean_text(item.get("metaName"))
 
   return Deal(
     source=SOURCE,
-    sail_date=normalize.parse_sail_date(raw_date),
+    sail_date=sail_date,
     depart_port=normalize.match_port(depart_raw) or depart_raw,
     depart_port_raw=depart_raw,
-    arrive_port=arrive_raw,
-    ports_of_call=normalize.split_ports(_text(row, "div.ports div.port_list")),
-    ship_name=_text(row, "div.celldata.itin2 div.ship"),
-    cruise_line=_text(row, "div.celldata.itin2 div.line"),
+    arrive_port=normalize.match_port(arrive_raw) or arrive_raw,
+    ports_of_call=tuple(
+      normalize.clean_text(p) for p in item.get("ports") or [] if normalize.clean_text(p)
+    ),
+    ship_name=normalize.clean_text(item.get("shipName")),
+    cruise_line=cruise_line(item.get("cruiseLineLogo")),
     nights=nights,
     price=price,
     currency="USD",
-    price_note=price_note,
-    detail_url=detail_url,
-    scraped_at=scraped_at,
+    price_note=f"每人最低價（{cabin}）" if cabin else "每人最低價",
+    detail_url=config.ICRUISE_DETAIL_URL.format(itinerary_id=item.get("id") or ""),
+    scraped_at=scraped_at or utcnow(),
   )
 
 
-def page_state(html: str) -> PageState:
-  """這一頁是哪一種：有結果表（results）、真正沒結果（empty）、認不出來（unknown）。
+def deals_in_window(items: list[dict[str, Any]], start: date, end: date) -> list[Deal]:
+  """整批結果 -> 目標港、窗口內的 Deal，同航次只留最便宜。
 
-  「0 Matched Sailings」與「No results found」都算 empty；
-  三種特徵都沒有的頁面不能當成 0 筆——那通常是被擋或錯誤頁。
+  整批 0 筆是改版（亞洲一整個月不可能沒有航次）；過濾後 0 筆才是正常。
   """
-  if "results_table" in html:
-    return "results"
-  if _NO_RESULTS_RE.search(html) or _MATCHED_RE.search(html):
-    return "empty"
-  return "unknown"
-
-
-def parse_search_page(html: str) -> list[Deal]:
-  """解析一頁搜尋結果。
-
-  兩種情況都要大聲失敗而不是回空清單：頁面宣稱有結果卻一筆都解析不出來
-  （版面改版），以及根本不是搜尋結果頁（被擋、錯誤頁）。
-  安靜回傳空清單會讓下游誤以為「今天真的沒有航次」而洗掉好資料。
-  """
-  state = page_state(html)
-  if state == "unknown":
-    raise ParseError("拿到的不是搜尋結果頁（沒有結果表、筆數，也沒有 No results found）")
-  if state == "empty":
-    return []
+  if not items:
+    raise ParseError(
+      "icruise 搜尋 API 回傳 0 筆亞洲航次——亞洲整個月不可能沒航次，API 可能已改版"
+    )
 
   scraped_at = utcnow()
-  tree = HTMLParser(html)
-  table = tree.css_first("table#results_table")
-
   deals: list[Deal] = []
-  if table is not None:
-    for row in table.css("tr"):
-      deal = _parse_row(row, scraped_at)
-      if deal is not None:
-        deals.append(deal)
-
-  claimed = matched_count(html)
-  if claimed > 0 and not deals:
-    raise ParseError(
-      f"頁面宣稱有 {claimed} 筆結果，卻解析出 0 筆——icruise 版面可能已改版"
-    )
-  return deals
+  for item in items:
+    deal = parse_item(item, scraped_at)
+    if deal is None or deal.depart_port not in config.TARGET_PORTS:
+      continue
+    if start <= deal.sail_date <= end:
+      deals.append(deal)
+  return keep_cheapest(deals)
 
 
-def save_debug(start: date, end: date, html: str) -> Path | None:
-  """把認不出來的頁面存進 debug/，CI 會當成 artifact 上傳供診斷。存不下來不影響主流程。"""
-  try:
-    config.DEBUG_DIR.mkdir(parents=True, exist_ok=True)
-    path = config.DEBUG_DIR / f"icruise_{start.isoformat()}_{end.isoformat()}.html"
-    path.write_text(html, encoding="utf-8")
-  except Exception as exc:  # noqa: BLE001 - 存不下來也不該影響主流程
-    log.debug("儲存除錯 HTML 失敗：%s", exc)
-    return None
-  return path
+def fetch_month(
+  client: httpx.Client, month: str, delay_s: float = config.REQUEST_DELAY_S
+) -> list[dict[str, Any]]:
+  """查一個月的亞洲航次，翻頁到不足一頁為止；每頁失敗會重試。"""
+  items: list[dict[str, Any]] = []
+  for page in range(1, MAX_PAGES + 1):
+    if page > 1:
+      time.sleep(delay_s)  # 禮貌延遲
 
+    def once() -> list[dict[str, Any]]:
+      response = client.post(config.ICRUISE_SEARCH_API, json=build_search_body(month, page))
+      response.raise_for_status()
+      try:
+        payload = response.json()
+      except ValueError as exc:
+        raise ParseError(f"icruise 搜尋 API 回應不是 JSON（{exc}）——可能正在維護") from exc
+      return extract_results(payload)
 
-def filter_target_ports(deals: list[Deal]) -> list[Deal]:
-  """只留下出發港為目標港口（基隆／東京／橫濱）的航次。"""
-  return [d for d in deals if d.depart_port in config.TARGET_PORTS]
-
-
-class UnrecognisedPage(ParseError):
-  """HTTP 200 但不是搜尋結果頁。帶著原始 HTML，重試用完時才存成現場。"""
-
-  def __init__(self, html: str) -> None:
-    super().__init__("拿到的不是搜尋結果頁（沒有結果表、筆數，也沒有 No results found）")
-    self.html = html
-
-
-def fetch_page(
-  client: httpx.Client, start: date, end: date, delay_s: float = config.REQUEST_DELAY_S
-) -> str:
-  """送出一段日期區間的查詢並回傳搜尋結果頁的 HTML（含重試）。
-
-  該站除了間歇性 404／5xx，還會回 HTTP 200 的自家錯誤頁
-  （「Oh no! There seems to be a problem… creating your account」，CI 上實際抓到），
-  重送通常就好了；所以「不是結果頁」也算暫時性失敗一起重試，
-  重試用完才拋 ParseError 並把最後一次的頁面存進 debug/。
-  """
-
-  def once() -> str:
-    response = client.get(build_search_url(start, end))
-    response.raise_for_status()
-    if page_state(response.text) == "unknown":
-      raise UnrecognisedPage(response.text)
-    return response.text
-
-  try:
-    return with_retry(once, attempts=3, delay_s=delay_s)
-  except UnrecognisedPage as exc:
-    saved = save_debug(start, end, exc.html)
-    where = f"（現場已存到 {saved}）" if saved else ""
-    raise ParseError(f"{exc}{where}") from exc
-
-
-def client_options() -> dict[str, Any]:
-  """httpx.Client() 的參數。
-
-  GitHub Actions 的 IP 會連續拿到該站的「creating your account」錯誤頁（本機正常），
-  是對方拒絕該 IP 而不是暫時性錯誤；有設 ICRUISE_PROXY 就走家用路由器的 SOCKS5 通道。
-  """
-  options: dict[str, Any] = {
-    "headers": {
-      "User-Agent": config.USER_AGENT,
-      "Accept-Language": "en-US,en;q=0.9",
-    },
-    "timeout": 60.0,
-    "follow_redirects": True,
-  }
-  proxy = proxy_from_env("ICRUISE_PROXY")
-  if proxy:
-    options["proxy"] = proxy
-  return options
+    batch = with_retry(once, attempts=3, delay_s=delay_s)
+    items.extend(batch)
+    if len(batch) < config.ICRUISE_PAGE_SIZE:
+      break
+  return items
 
 
 def scrape(
   start: date | None = None,
   lookahead_days: int = config.LOOKAHEAD_DAYS,
-  chunk_days: int = config.CHUNK_DAYS,
 ) -> list[Deal]:
   """擷取未來 lookahead_days 天內、由目標港口出發的所有航次。"""
   start = start or date.today()
   end = start + timedelta(days=lookahead_days)
-  chunks = date_chunks(start, end, chunk_days)
 
-  collected: dict[tuple, Deal] = {}
-  options = client_options()
-  if "proxy" in options:
-    log.info("icruise 透過代理連線：%s", options["proxy"])
-
-  with httpx.Client(**options) as client:
-    for index, (chunk_start, chunk_end) in enumerate(chunks):
+  headers = {
+    "User-Agent": config.USER_AGENT,
+    "Origin": config.ICRUISE_BASE,
+    "Referer": config.ICRUISE_BASE + "/",
+  }
+  items: list[dict[str, Any]] = []
+  with httpx.Client(headers=headers, timeout=60.0) as client:
+    for index, month in enumerate(months_covering(start, end)):
       if index:
-        time.sleep(config.REQUEST_DELAY_S)  # 禮貌延遲
-      html = fetch_page(client, chunk_start, chunk_end)
-      try:
-        page_deals = parse_search_page(html)
-      except ParseError as exc:
-        # 版面改版（宣稱有結果卻解析出 0）也把現場留下
-        saved = save_debug(chunk_start, chunk_end, html)
-        where = f"（現場已存到 {saved}）" if saved else ""
-        raise ParseError(f"{exc}{where}") from exc
-      claimed = matched_count(html)
-      if claimed > 25:
-        # 切段後仍撞到 25 筆上限代表會漏資料，記下來以便調小 chunk_days
-        log.warning(
-          "%s ~ %s 有 %d 筆結果，超過單頁 25 筆上限，可能遺漏；建議調小 CHUNK_DAYS",
-          chunk_start,
-          chunk_end,
-          claimed,
-        )
-      for deal in filter_target_ports(page_deals):
-        collected[deal.dedup_key] = deal
+        time.sleep(config.REQUEST_DELAY_S)
+      items.extend(fetch_month(client, month))
 
-  return list(collected.values())
+  deals = deals_in_window(items, start, end)
+
+  unknown = sorted(
+    {
+      logo_id(x.get("cruiseLineLogo")) or "?"
+      for x in items
+      if not cruise_line(x.get("cruiseLineLogo"))
+    }
+  )
+  if unknown:
+    log.warning(
+      "icruise 有 %d 個船公司 logo id 沒對照到名稱：%s（見 CRUISE_LINE_BY_LOGO_ID）",
+      len(unknown),
+      "、".join(unknown),
+    )
+  log.info("icruise：%d 筆亞洲航次中有 %d 筆落在窗口內", len(items), len(deals))
+  return deals

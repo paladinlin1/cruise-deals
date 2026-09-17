@@ -14,8 +14,8 @@ DEBUG_DIR = ROOT / "debug"
 # 出發日期窗口：今天起算一個月內
 LOOKAHEAD_DAYS = 30
 
-# icruise 每頁固定 25 筆且分頁參數無法由 GET 控制（已實測），
-# 因此把日期窗口切成小段查詢，讓每段結果自然低於上限。
+# asiayo 的價格是「查詢區間內所有出發日的最低價」，
+# 因此把日期窗口切成小段查詢，逐段的價格才對得上出發日。
 CHUNK_DAYS = 5
 
 # 目標出發港：正規化名稱 -> 用於比對的小寫關鍵字
@@ -123,11 +123,16 @@ CRUISE_LINE_ALIASES: dict[str, str] = {
   "三井海洋郵輪": "Mitsui Ocean Cruises",
 }
 
-# icruise 搜尋參數
-ICRUISE_SEARCH_URL = "https://www.icruise.com/c/src.php"
+# icruise：新版搜尋頁背後的 JSON API（Arrivia shared-components，不需授權）
 ICRUISE_BASE = "https://www.icruise.com"
-ICRUISE_DESTINATION_ASIA = 7  # WMPHDestinationCodeSub=7 為亞洲
-ICRUISE_VACATION_TYPE = 1
+ICRUISE_SEARCH_API = (
+  "https://shared-components-api-wa-prod-usc.azurewebsites.net"
+  "/api/cruise/search/get-search-results"
+)
+ICRUISE_DETAIL_URL = ICRUISE_BASE + "/c/itinDetail.php?CruiseItineraryID={itinerary_id}"
+ICRUISE_DESTINATION_ASIA = "7"  # 目的地代碼：亞洲（與舊站的 WMPHDestinationCodeSub 相同）
+ICRUISE_BRAND = "IC"  # 零售站品牌代碼（wmphBrand）
+ICRUISE_PAGE_SIZE = 100  # 實測 500 會回空，100 正常
 
 # cruisedirect（Cloudflare 保護，需真實瀏覽器）
 CRUISEDIRECT_URL = "https://www.cruisedirect.com/cruises/last-minute-cruises"
