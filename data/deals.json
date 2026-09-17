@@ -1,56 +1,14 @@
 {
-  "generated_at": "2026-09-17T02:57:28.689762+00:00",
+  "generated_at": "2026-09-17T03:03:11.990515+00:00",
   "run_report": {
-    "generated_at": "2026-09-17T02:57:28.689762+00:00",
+    "generated_at": "2026-09-17T03:03:11.990515+00:00",
     "sources": [
       {
-        "source": "icruise",
-        "ok": true,
-        "count": 0,
-        "duration_s": 21.69,
-        "error": null
-      },
-      {
-        "source": "expedia",
-        "ok": true,
-        "count": 9,
-        "duration_s": 8.22,
-        "error": null
-      },
-      {
-        "source": "cruisedirect",
-        "ok": true,
-        "count": 15,
-        "duration_s": 109.51,
-        "error": null
-      },
-      {
-        "source": "asiayo",
-        "ok": true,
-        "count": 10,
-        "duration_s": 44.02,
-        "error": null
-      },
-      {
-        "source": "bwt",
-        "ok": true,
-        "count": 0,
-        "duration_s": 1.41,
-        "error": null
-      },
-      {
-        "source": "lion",
-        "ok": true,
-        "count": 0,
-        "duration_s": 2.95,
-        "error": null
-      },
-      {
         "source": "eztravel",
-        "ok": false,
-        "count": 0,
-        "duration_s": 13.11,
-        "error": "Error: APIRequestContext.get: socket hang up\nCall log:\n  - → GET https://vacation.eztravel.com.tw/pkgfrn/results/KEE/310?depDateFrom=20260917&depDateTo=20261017&pageSize=100\n    - user-agent: Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/151.0.7922.34 Safari/537.36\n    - accept: */*\n    - accept-encoding: gzip,deflate,br\n    - cookie: visid_incap_3260663=BWxsoNufQ7SvzbE9j7TtAwtXq2oAAAAAQUIPAAAAAABTAev1hDFiYe2OFGL+E2Hy; incap_ses_1016_3260663=vvBqbqJ1Xx/DD5xOrI4ZDgtXq2oAAAAAMmy0moSZDzyz1mJhKvE/7Q==; ega_client_id=80llAxyYkptM2t; visid_incap_3246123=i84Gr6HsTDCpH4fLX5UYzwxXq2oAAAAAQUIPAAAAAAAZOpGiuWZl6snCGS3uwkcm; nlbi_3246123=E2MdK7hO/lE+5JOvlYAhhQAAAACXbUrG7+XTsW4sNCHneuuT; incap_ses_1016_3246123=Dh9TX15nfUM4FpxOrI4ZDgxXq2oAAAAAn1usyu7WCJczzS1x5vxoow==; _fbp=fb.2.1789613837962.698666641941727093; rl_anonymous_id=%22e784f40d-0608-4aa3-893a-9cb79b284ad4%22; rl_page_init_referrer=%22%24direct%22; rl_session=%7B%22id%22%3A1789613838001%2C%22expiresAt%22%3A1789615638001%2C%22timeout%22%3A1800000%2C%22autoTrack%22%3Atrue%7D; _qg_fts=1789613838; QGUserId=4776501096069010; airisTracker=f8cpfgG4NaRi"
+        "ok": true,
+        "count": 5,
+        "duration_s": 30.89,
+        "error": null
       }
     ],
     "warnings": []
@@ -61,7 +19,7 @@
     "source": "open.er-api.com",
     "stale": false
   },
-  "count": 26,
+  "count": 27,
   "deals": [
     {
       "source": "asiayo",
@@ -83,7 +41,7 @@
       "price_note": "行程總價（每人，2 人一室起）",
       "detail_url": "https://asiayo.com/zh-tw/cruise/item/54114/?activityStartDate=2026-09-20",
       "scraped_at": "2026-09-17T02:56:29.316341+00:00",
-      "stale_since": null,
+      "stale_since": "2026-09-17",
       "other_sources": {},
       "price_twd": "14000",
       "fx_rate": null,
@@ -112,7 +70,7 @@
       "price_note": "各房型最低價（每人，含稅費）",
       "detail_url": "https://book.cruisedirect.com/swift/cruise/package/1531654?siid=294662",
       "scraped_at": "2026-09-17T02:56:26.961185+00:00",
-      "stale_since": null,
+      "stale_since": "2026-09-17",
       "other_sources": {},
       "price_twd": null,
       "fx_rate": "31.841358",
@@ -120,27 +78,31 @@
       "days": 10
     },
     {
-      "source": "asiayo",
+      "source": "eztravel",
       "sail_date": "2026-09-23",
       "depart_port": "Keelung",
-      "depart_port_raw": "基隆",
-      "arrive_port": "基隆港",
+      "depart_port_raw": "基隆港出發",
+      "arrive_port": "Keelung",
       "ports_of_call": [
-        "基隆港",
-        "沖繩・那霸 NCT",
-        "基隆港"
+        "那霸"
       ],
       "ship_name": "Star Voyager",
       "cruise_line": "Star Cruises",
       "nights": 2,
-      "price": "9300",
+      "price": "8000",
       "currency": "TWD",
-      "price_note": "行程總價（每人，2 人一室起）",
-      "detail_url": "https://asiayo.com/zh-tw/cruise/item/51224/?activityStartDate=2026-09-23",
-      "scraped_at": "2026-09-17T02:56:32.357161+00:00",
+      "price_note": "雙人房成人（每人）",
+      "detail_url": "https://vacation.eztravel.com.tw/pkgfrn/introduction/FRN0000020376/20260923",
+      "scraped_at": "2026-09-17T03:02:58.558839+00:00",
       "stale_since": null,
-      "other_sources": {},
-      "price_twd": "9300",
+      "other_sources": {
+        "asiayo": {
+          "price": "9300",
+          "currency": "TWD",
+          "price_twd": "9300"
+        }
+      },
+      "price_twd": "8000",
       "fx_rate": null,
       "ship_name_raw": "探索星號",
       "days": 3
@@ -172,7 +134,7 @@
       "price_note": "各房型最低價（每人，含稅費）",
       "detail_url": "https://book.cruisedirect.com/swift/cruise/package/1567588?siid=294662",
       "scraped_at": "2026-09-17T02:55:39.754118+00:00",
-      "stale_since": null,
+      "stale_since": "2026-09-17",
       "other_sources": {
         "expedia": {
           "price": "4687.2",
@@ -204,7 +166,7 @@
       "price_note": "行程總價（每人，2 人一室起）",
       "detail_url": "https://asiayo.com/zh-tw/cruise/item/51223/?activityStartDate=2026-09-25",
       "scraped_at": "2026-09-17T02:56:32.357161+00:00",
-      "stale_since": null,
+      "stale_since": "2026-09-17",
       "other_sources": {},
       "price_twd": "21300",
       "fx_rate": null,
@@ -212,29 +174,33 @@
       "days": 3
     },
     {
-      "source": "asiayo",
+      "source": "eztravel",
       "sail_date": "2026-09-27",
       "depart_port": "Keelung",
-      "depart_port_raw": "基隆",
-      "arrive_port": "基隆港",
+      "depart_port_raw": "基隆港出發",
+      "arrive_port": "Keelung",
       "ports_of_call": [
-        "基隆港",
-        "釜山 BICT",
+        "釜山",
         "長崎",
-        "沖繩・那霸 NCT",
-        "基隆港"
+        "那霸"
       ],
       "ship_name": "Star Voyager",
       "cruise_line": "Star Cruises",
       "nights": 5,
-      "price": "21583",
+      "price": "18000",
       "currency": "TWD",
-      "price_note": "行程總價（每人，2 人一室起）",
-      "detail_url": "https://asiayo.com/zh-tw/cruise/item/51226/?activityStartDate=2026-09-27",
-      "scraped_at": "2026-09-17T02:56:35.437177+00:00",
+      "price_note": "雙人房成人（每人）",
+      "detail_url": "https://vacation.eztravel.com.tw/pkgfrn/introduction/FRN0000020393/20260927",
+      "scraped_at": "2026-09-17T03:02:58.558839+00:00",
       "stale_since": null,
-      "other_sources": {},
-      "price_twd": "21583",
+      "other_sources": {
+        "asiayo": {
+          "price": "21583",
+          "currency": "TWD",
+          "price_twd": "21583"
+        }
+      },
+      "price_twd": "18000",
       "fx_rate": null,
       "ship_name_raw": "探索星號",
       "days": 6
@@ -254,7 +220,7 @@
       "price_note": "各房型最低價（每人）",
       "detail_url": "https://bookus.expediacruises.com/swift/cruise/package/1558527?siid=1095905&lang=1",
       "scraped_at": "2026-09-17T02:54:37.669525+00:00",
-      "stale_since": null,
+      "stale_since": "2026-09-17",
       "other_sources": {
         "cruisedirect": {
           "price": "11699",
@@ -292,7 +258,7 @@
       "price_note": "各房型最低價（每人，含稅費）",
       "detail_url": "https://book.cruisedirect.com/swift/cruise/package/1531679?siid=294662",
       "scraped_at": "2026-09-17T02:56:26.961185+00:00",
-      "stale_since": null,
+      "stale_since": "2026-09-17",
       "other_sources": {},
       "price_twd": "50914",
       "fx_rate": "31.841358",
@@ -316,12 +282,38 @@
       "price_note": "行程總價（每人，2 人一室起）",
       "detail_url": "https://asiayo.com/zh-tw/cruise/item/54113/?activityStartDate=2026-10-02",
       "scraped_at": "2026-09-17T02:56:38.299977+00:00",
-      "stale_since": null,
+      "stale_since": "2026-09-17",
       "other_sources": {},
       "price_twd": "8000",
       "fx_rate": null,
       "ship_name_raw": "探索星號",
       "days": 3
+    },
+    {
+      "source": "eztravel",
+      "sail_date": "2026-10-04",
+      "depart_port": "Keelung",
+      "depart_port_raw": "基隆港出發",
+      "arrive_port": "Keelung",
+      "ports_of_call": [
+        "那霸",
+        "石垣島",
+        "宮古島"
+      ],
+      "ship_name": "Star Voyager",
+      "cruise_line": "Star Cruises",
+      "nights": 4,
+      "price": "14000",
+      "currency": "TWD",
+      "price_note": "雙人房成人（每人）",
+      "detail_url": "https://vacation.eztravel.com.tw/pkgfrn/introduction/FRN0000020382/20261004",
+      "scraped_at": "2026-09-17T03:02:58.558839+00:00",
+      "stale_since": null,
+      "other_sources": {},
+      "price_twd": "14000",
+      "fx_rate": null,
+      "ship_name_raw": "探索星號",
+      "days": 5
     },
     {
       "source": "expedia",
@@ -338,7 +330,7 @@
       "price_note": "各房型最低價（每人）",
       "detail_url": "https://bookus.expediacruises.com/swift/cruise/package/1653420?siid=1095905&lang=1",
       "scraped_at": "2026-09-17T02:54:37.669525+00:00",
-      "stale_since": null,
+      "stale_since": "2026-09-17",
       "other_sources": {
         "cruisedirect": {
           "price": "2182",
@@ -366,7 +358,7 @@
       "price_note": "各房型最低價（每人）",
       "detail_url": "https://bookus.expediacruises.com/swift/cruise/package/1533141?siid=1095905&lang=1",
       "scraped_at": "2026-09-17T02:54:37.669525+00:00",
-      "stale_since": null,
+      "stale_since": "2026-09-17",
       "other_sources": {
         "cruisedirect": {
           "price": "2878",
@@ -405,7 +397,7 @@
       "price_note": "各房型最低價（每人，含稅費）",
       "detail_url": "https://book.cruisedirect.com/swift/cruise/package/1600987?siid=294662",
       "scraped_at": "2026-09-17T02:56:26.961185+00:00",
-      "stale_since": null,
+      "stale_since": "2026-09-17",
       "other_sources": {},
       "price_twd": "37668",
       "fx_rate": "31.841358",
@@ -427,7 +419,7 @@
       "price_note": "各房型最低價（每人）",
       "detail_url": "https://bookus.expediacruises.com/swift/cruise/package/1554191?siid=1095905&lang=1",
       "scraped_at": "2026-09-17T02:54:37.669525+00:00",
-      "stale_since": null,
+      "stale_since": "2026-09-17",
       "other_sources": {
         "cruisedirect": {
           "price": "1979",
@@ -459,7 +451,7 @@
       "price_note": "行程總價（每人，2 人一室起）",
       "detail_url": "https://asiayo.com/zh-tw/cruise/item/126355/?activityStartDate=2026-10-08",
       "scraped_at": "2026-09-17T02:56:41.364087+00:00",
-      "stale_since": null,
+      "stale_since": "2026-09-17",
       "other_sources": {},
       "price_twd": "30950",
       "fx_rate": null,
@@ -490,7 +482,7 @@
       "price_note": "各房型最低價（每人，含稅費）",
       "detail_url": "https://book.cruisedirect.com/swift/cruise/package/1651260?siid=294662",
       "scraped_at": "2026-09-17T02:55:39.754118+00:00",
-      "stale_since": null,
+      "stale_since": "2026-09-17",
       "other_sources": {},
       "price_twd": "46679",
       "fx_rate": "31.841358",
@@ -512,7 +504,7 @@
       "price_note": "各房型最低價（每人）",
       "detail_url": "https://bookus.expediacruises.com/swift/cruise/package/1601023?siid=1095905&lang=1",
       "scraped_at": "2026-09-17T02:54:37.669525+00:00",
-      "stale_since": null,
+      "stale_since": "2026-09-17",
       "other_sources": {},
       "price_twd": "515830",
       "fx_rate": "31.841358",
@@ -543,7 +535,7 @@
       "price_note": "各房型最低價（每人，含稅費）",
       "detail_url": "https://book.cruisedirect.com/swift/cruise/package/1531659?siid=294662",
       "scraped_at": "2026-09-17T02:56:26.961185+00:00",
-      "stale_since": null,
+      "stale_since": "2026-09-17",
       "other_sources": {},
       "price_twd": "41266",
       "fx_rate": "31.841358",
@@ -565,7 +557,7 @@
       "price_note": "各房型最低價（每人）",
       "detail_url": "https://bookus.expediacruises.com/swift/cruise/package/1584064?siid=1095905&lang=1",
       "scraped_at": "2026-09-17T02:54:37.669525+00:00",
-      "stale_since": null,
+      "stale_since": "2026-09-17",
       "other_sources": {
         "cruisedirect": {
           "price": "8499",
@@ -597,7 +589,7 @@
       "price_note": "行程總價（每人，2 人一室起）",
       "detail_url": "https://asiayo.com/zh-tw/cruise/item/54112/?activityStartDate=2026-10-11",
       "scraped_at": "2026-09-17T02:56:41.364087+00:00",
-      "stale_since": null,
+      "stale_since": "2026-09-17",
       "other_sources": {},
       "price_twd": "9633",
       "fx_rate": null,
@@ -623,36 +615,46 @@
       "price_note": "行程總價（每人，2 人一室起）",
       "detail_url": "https://asiayo.com/zh-tw/cruise/item/129321/?activityStartDate=2026-10-11",
       "scraped_at": "2026-09-17T02:56:41.364087+00:00",
-      "stale_since": null,
-      "other_sources": {},
+      "stale_since": "2026-09-17",
+      "other_sources": {
+        "eztravel": {
+          "price": "62000",
+          "currency": "TWD",
+          "price_twd": "62000"
+        }
+      },
       "price_twd": "61200",
       "fx_rate": null,
       "ship_name_raw": "海洋富士號",
       "days": 5
     },
     {
-      "source": "asiayo",
+      "source": "eztravel",
       "sail_date": "2026-10-13",
       "depart_port": "Keelung",
-      "depart_port_raw": "基隆",
-      "arrive_port": "基隆港",
+      "depart_port_raw": "基隆港出發",
+      "arrive_port": "Keelung",
       "ports_of_call": [
-        "基隆港",
-        "沖繩・那霸 NCT",
-        "石垣島",
-        "基隆港"
+        "那霸",
+        "石垣島"
       ],
       "ship_name": "Star Voyager",
       "cruise_line": "Star Cruises",
       "nights": 3,
-      "price": "25950",
+      "price": "11000",
       "currency": "TWD",
-      "price_note": "行程總價（每人，2 人一室起）",
-      "detail_url": "https://asiayo.com/zh-tw/cruise/item/54117/?activityStartDate=2026-10-13",
-      "scraped_at": "2026-09-17T02:56:44.305324+00:00",
+      "price_note": "雙人房成人（每人）",
+      "detail_url": "https://vacation.eztravel.com.tw/pkgfrn/introduction/FRN0000020380/20261013",
+      "scraped_at": "2026-09-17T03:02:58.558839+00:00",
       "stale_since": null,
-      "other_sources": {},
-      "price_twd": "25950",
+      "other_sources": {
+        "asiayo": {
+          "price": "25950",
+          "currency": "TWD",
+          "price_twd": "25950"
+        }
+      },
+      "price_twd": "11000",
       "fx_rate": null,
       "ship_name_raw": "探索星號",
       "days": 4
@@ -676,7 +678,7 @@
       "price_note": "行程總價（每人，2 人一室起）",
       "detail_url": "https://asiayo.com/zh-tw/cruise/item/51223/?activityStartDate=2026-10-16",
       "scraped_at": "2026-09-17T02:56:44.305324+00:00",
-      "stale_since": null,
+      "stale_since": "2026-09-17",
       "other_sources": {},
       "price_twd": "61300",
       "fx_rate": null,
@@ -698,7 +700,7 @@
       "price_note": "各房型最低價（每人）",
       "detail_url": "https://bookus.expediacruises.com/swift/cruise/package/1557956?siid=1095905&lang=1",
       "scraped_at": "2026-09-17T02:54:37.669525+00:00",
-      "stale_since": null,
+      "stale_since": "2026-09-17",
       "other_sources": {
         "cruisedirect": {
           "price": "13199",
@@ -726,7 +728,7 @@
       "price_note": "各房型最低價（每人）",
       "detail_url": "https://bookus.expediacruises.com/swift/cruise/package/1567338?siid=1095905&lang=1",
       "scraped_at": "2026-09-17T02:54:37.669525+00:00",
-      "stale_since": null,
+      "stale_since": "2026-09-17",
       "other_sources": {
         "cruisedirect": {
           "price": "31998",
@@ -765,7 +767,7 @@
       "price_note": "各房型最低價（每人，含稅費）",
       "detail_url": "https://book.cruisedirect.com/swift/cruise/package/1542942?siid=294662",
       "scraped_at": "2026-09-17T02:55:39.754118+00:00",
-      "stale_since": null,
+      "stale_since": "2026-09-17",
       "other_sources": {},
       "price_twd": "61167",
       "fx_rate": "31.841358",
@@ -800,7 +802,7 @@
       "price_note": "各房型最低價（每人，含稅費）",
       "detail_url": "https://book.cruisedirect.com/swift/cruise/package/1653212?siid=294662",
       "scraped_at": "2026-09-17T02:55:56.061599+00:00",
-      "stale_since": null,
+      "stale_since": "2026-09-17",
       "other_sources": {},
       "price_twd": "404385",
       "fx_rate": "31.841358",
