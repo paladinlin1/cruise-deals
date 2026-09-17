@@ -63,9 +63,10 @@ SOURCE = "eztravel"
 # 出發日狀態：關團。其餘（"NONE"）都收。
 CLOSED_STATUS = "END"
 
-# 商品頁價格列：雙人房（htlNum）× 成人（cond2Type）
+# 商品頁價格列：雙人房（htlNum）× 成人（cond2Type）× 佔床（cond3Type）
 DOUBLE_ROOM = "2"
 ADULT = "1"
+OCCUPYING_BED = "1"
 
 PRICE_NOTE_INTRO = "雙人房成人（每人）"
 PRICE_NOTE_LIST = "列表最低價（每人，可能為 3／4 人房）"
@@ -142,7 +143,11 @@ def extract_results(state: Any) -> list[dict[str, Any]]:
   # 網址已帶 pageSize 一次要完；宣稱的 total 還是比拿到的多就是被分頁截斷了，
   # 安靜漏掉第二頁的航次會讓下游以為「今天就這麼少」
   total = ((search.get("searchInfo") or {}).get("pageConfig") or {}).get("total")
-  if isinstance(total, int) and total > len(results):
+  try:
+    total = int(total)
+  except (TypeError, ValueError):
+    total = None
+  if total is not None and total > len(results):
     raise ParseError(f"易遊網列表宣稱有 {total} 個商品卻只回 {len(results)} 個——分頁被截斷")
   return results
 
@@ -187,6 +192,9 @@ def sailings_in_window(
   for product in results:
     if not is_keelung_departure(product):
       continue
+    if not product.get("pfProdNo"):
+      log.warning("易遊網有商品沒有編號（%s），略過", (product.get("prodNm") or "")[:40])
+      continue
     if _nights(product) <= 0:
       log.warning("易遊網商品 %s 的天數不合理（%r），略過", product.get("pfProdNo"), product.get("travelDay"))
       continue
@@ -205,7 +213,7 @@ def sailings_in_window(
 
 
 def _nights(product: dict[str, Any]) -> int:
-  """travelDay（天）換成夜數；缺漏或不是數字視為 0。"""
+  """travelDay（天）換成夜數；缺漏或不是數字時回 0 以下，讓呼叫端略過。"""
   try:
     return int(product.get("travelDay") or 0) - 1
   except (TypeError, ValueError):
@@ -213,13 +221,21 @@ def _nights(product: dict[str, Any]) -> int:
 
 
 def double_occupancy_price(intro: dict[str, Any]) -> Decimal | None:
-  """商品頁裡「雙人房 × 成人」各艙等的最低每人價；沒有雙人房列時回 None。"""
+  """商品頁裡「雙人房 × 成人 × 佔床」各艙等的最低每人價；沒有這種列時回 None。
+
+  欄位用 str() 比對：站方目前給字串，哪天改成整數也不該讓整站安靜退回 3／4 人房價。
+  """
+  rows = intro.get("pfProPrice4Introductions") or []
   prices = [
     normalize.parse_price(row.get("price"))
-    for row in intro.get("pfProPrice4Introductions") or []
-    if row.get("htlNum") == DOUBLE_ROOM and row.get("cond2Type") == ADULT
+    for row in rows
+    if str(row.get("htlNum")) == DOUBLE_ROOM
+    and str(row.get("cond2Type")) == ADULT
+    and str(row.get("cond3Type", OCCUPYING_BED)) == OCCUPYING_BED
   ]
   prices = [p for p in prices if p is not None]
+  if not prices and rows:
+    log.warning("易遊網商品頁有 %d 列價格卻沒有「雙人房×成人」列——欄位格式可能改了", len(rows))
   return min(prices) if prices else None
 
 
@@ -332,6 +348,7 @@ def collect(fetch: Fetch, start: date, end: date) -> list[Deal]:
 
   scraped_at = utcnow()
   deals: list[Deal] = []
+  intros_with_prices = 0
   for sailing in sailings:
     try:
       intro = extract_intro(fetch(sailing.detail_url))
@@ -344,8 +361,29 @@ def collect(fetch: Fetch, start: date, end: date) -> list[Deal]:
     else:
       if intro is None:
         log.warning("易遊網商品頁 %s 沒有價格表，退回列表價", sailing.detail_url)
+      elif intro.get("pfProPrice4Introductions"):
+        intros_with_prices += 1
     deals.append(build_deal(sailing, intro, scraped_at))
-  return keep_cheapest(deals)
+
+  priced = [d for d in deals if d.price_note == PRICE_NOTE_INTRO]
+  if intros_with_prices and not priced:
+    raise ParseError(
+      f"易遊網 {intros_with_prices} 個商品頁都有價格表卻一筆「雙人房×成人」都對不到"
+      "——價格表欄位可能已改版，不能整站退回 3／4 人房價"
+    )
+  return _prefer_intro_prices(priced, [d for d in deals if d.price_note != PRICE_NOTE_INTRO])
+
+
+def _prefer_intro_prices(priced: list[Deal], fallback: list[Deal]) -> list[Deal]:
+  """來源內去重，但雙人房價永遠優先：退回的列表價是 3／4 人房價，數字小不代表便宜。
+
+  同一航次拆成兩個商品時，若 A 的商品頁成功、B 的商品頁暫時失敗，
+  直接 keep_cheapest 會讓 B 的 6,325 壓過 A 的 8,000——那正是進商品頁要避免的失真。
+  """
+  result = keep_cheapest(priced)
+  taken = {d.dedup_key for d in result}
+  result.extend(keep_cheapest([d for d in fallback if d.dedup_key not in taken]))
+  return result
 
 
 def _wait_for_next_data(page, timeout_s: float = 45.0) -> str:
@@ -388,6 +426,8 @@ def scrape(
           return cache.pop(url)
         time.sleep(config.REQUEST_DELAY_S)  # 禮貌延遲
         response = page.request.get(url)
+        if response.status in (403, 429):
+          raise BlockedError(f"易遊網回 HTTP {response.status}（{url}）——被機器人防護擋下")
         return extract_state(response.text())
 
       deals = collect(fetch, start, end)

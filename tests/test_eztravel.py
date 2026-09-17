@@ -3,7 +3,8 @@
 跑在真實存下來的 `__NEXT_DATA__` 上（2026-09-17 抓的），不需要網路也不需要瀏覽器：
   eztravel_results_kee_332.json   基隆港／沖繩航線、一個月窗口的列表（7 個商品，2 個關團）
   eztravel_intro_navigator.json   探索星號 9/23 商品頁（內側／海景／露台 × 雙人／3 人／4 人房）
-  eztravel_intro_fuji.json        三井富士號 10/11 商品頁（只有陽台套房雙人房、沒有行程表）
+  eztravel_intro_fuji.json        三井富士號 10/11 商品頁（只有陽台套房雙人房；
+                                  沒有逐日行程文字，但 routeInfo.routes 有 5 天）
   eztravel_incapsula.html         被 Incapsula 擋下時回的 212 bytes 挑戰頁
 
 這一站的重點是三個判斷：
@@ -130,6 +131,17 @@ class TestPageShape:
     with pytest.raises(ParseError, match="19"):
       eztravel.extract_results(state)
 
+  def test_truncated_list_with_a_string_total_is_still_caught(self):
+    state = {
+      "search": {
+        "searchStatus": "SUCCESS",
+        "searchInfo": {"pageConfig": {"total": "19"}},
+        "searchResults": [product()] * 12,
+      }
+    }
+    with pytest.raises(ParseError, match="19"):
+      eztravel.extract_results(state)
+
   def test_null_page_props_is_parse_error(self):
     html = wrap_html({"props": {"pageProps": None}})
     with pytest.raises(ParseError):
@@ -193,6 +205,9 @@ class TestSailingsInWindow:
       (date(2026, 10, 7), "https://x/FRN0000020376/20261007"),
     ]
 
+  def test_products_without_a_product_number_are_skipped(self):
+    assert eztravel.sailings_in_window([product(pfProdNo=None)], *WINDOW) == []
+
   def test_products_without_a_usable_day_count_are_skipped(self):
     assert eztravel.sailings_in_window([product(travelDay=None)], *WINDOW) == []
     assert eztravel.sailings_in_window([product(travelDay=1)], *WINDOW) == []
@@ -225,6 +240,19 @@ class TestDoubleOccupancyPrice:
     }
     assert eztravel.double_occupancy_price(only_triples) is None
 
+  def test_integer_typed_fields_still_match(self):
+    # 站方若把 htlNum／cond2Type 從字串改成整數，不能整站安靜退回 3／4 人房價
+    assert eztravel.double_occupancy_price(
+      {"pfProPrice4Introductions": [{"htlNum": 2, "cond2Type": 1, "cond3Type": 1, "price": 8000}]}
+    ) == Decimal("8000")
+
+  def test_adult_not_occupying_a_bed_is_not_a_quote(self):
+    rows = [
+      {"htlNum": "2", "cond2Type": "1", "cond3Type": "2", "price": 4000},  # 不佔床
+      {"htlNum": "2", "cond2Type": "1", "cond3Type": "1", "price": 8000},
+    ]
+    assert eztravel.double_occupancy_price({"pfProPrice4Introductions": rows}) == Decimal("8000")
+
   def test_zero_price_is_not_a_quote(self):
     assert eztravel.double_occupancy_price(
       {"pfProPrice4Introductions": [{"htlNum": "2", "cond2Type": "1", "price": 0}]}
@@ -245,6 +273,13 @@ class TestRoute:
     assert eztravel.route_ports({}) == ()
     assert eztravel.route_ports(None) == ()
 
+  def test_two_stop_one_way_route_has_no_ports_of_call(self):
+    intro = {"routeInfo": {"routes": [{"city": "基隆"}, {"city": "海上巡航"}, {"city": "蘇澳"}]}}
+    (sailing,) = eztravel.sailings_in_window([product(travelDay=3)], *WINDOW)
+    deal = eztravel.build_deal(sailing, intro, None)
+    assert deal.ports_of_call == ()
+    assert deal.arrive_port == "蘇澳"
+
   def test_arrival_port_is_the_last_stop(self, navigator_intro, fuji_intro):
     assert eztravel.arrive_port(navigator_intro, "", "Keelung") == "Keelung"
     assert eztravel.arrive_port(fuji_intro, "", "Keelung") == "蘇澳"
@@ -255,6 +290,22 @@ class TestRoute:
 
   def test_falls_back_to_the_departure_port(self):
     assert eztravel.arrive_port(None, "MSC地中海郵輪．榮耀號 5 天 4 晚", "Keelung") == "Keelung"
+
+
+class TestShipTitle:
+  def test_promo_bracket_is_dropped(self):
+    assert eztravel.ship_title(
+      "【三大好禮全含｜小費・Wi-Fi・船上消費金】【三井海洋郵輪富士號船票】2026年之旅"
+    ) == "【三井海洋郵輪富士號】2026年之旅"
+
+  def test_title_without_brackets_is_unchanged(self):
+    assert eztravel.ship_title("MSC地中海郵輪．榮耀號 5 天 4 晚") == "MSC地中海郵輪．榮耀號 5 天 4 晚"
+
+  def test_route_bracket_is_not_mistaken_for_a_ship(self):
+    assert eztravel.ship_title("【基隆→那霸→基隆】探索星號 3 天") == "【基隆→那霸→基隆】探索星號 3 天"
+
+  def test_ticket_word_is_removed_wherever_it_appears(self):
+    assert "船票" not in eztravel.ship_title("【探索星號船票】單訂船票 3 天")
 
 
 class TestBuildDeal:
@@ -418,6 +469,65 @@ class TestCollect:
     deals = eztravel.collect(lambda url: state if "/results/" in url else {}, *WINDOW)
 
     assert sorted(d.sail_date for d in deals) == [date(2026, 9, 23), date(2026, 10, 1)]
+
+  def test_intro_price_beats_a_cheaper_fallback_list_price_for_the_same_sailing(self):
+    # 同航次兩個商品：A 的商品頁成功（雙人房 8,000）、B 的商品頁暫時失敗退回列表價 6,325。
+    # 列表價是 3／4 人房價，不能因為數字小就壓過雙人房價——那正是整個設計要避免的失真
+    sale = {"saleDt": "20260923", "fullStatus": "NONE"}
+    a = product(pfProdNo="A", otherSaleDts=[{**sale, "prodUrl": "https://x/A"}])
+    b = product(pfProdNo="B", otherSaleDts=[{**sale, "prodUrl": "https://x/B"}])
+    state = {"search": {"searchStatus": "SUCCESS", "searchResults": [a, b]}}
+    intro = {
+      "introduction": {
+        "server": {
+          "introData": {
+            "pfProPrice4Introductions": [{"htlNum": "2", "cond2Type": "1", "price": 8000}]
+          }
+        }
+      }
+    }
+
+    def fetch(url: str) -> dict:
+      if "/results/" in url:
+        return state
+      if url.endswith("/A"):
+        return intro
+      raise RuntimeError("B 商品頁掛了")
+
+    (deal,) = eztravel.collect(fetch, *WINDOW)
+
+    assert (deal.price, deal.price_note) == (Decimal("8000"), eztravel.PRICE_NOTE_INTRO)
+
+  def test_fallback_list_price_is_still_used_when_no_intro_price_exists(self):
+    state = {"search": {"searchStatus": "SUCCESS", "searchResults": [product()]}}
+
+    (deal,) = eztravel.collect(lambda url: state if "/results/" in url else {}, *WINDOW)
+
+    assert (deal.price, deal.price_note) == (Decimal("6325"), eztravel.PRICE_NOTE_LIST)
+
+  def test_intro_pages_that_all_lack_a_double_room_row_are_a_site_change(self):
+    # 商品頁有價格表卻一筆雙人房成人都對不到，代表欄位格式改了；
+    # 安靜退回 3／4 人房價會讓整站報價偏低卻回報成功
+    state = {"search": {"searchStatus": "SUCCESS", "searchResults": [product()]}}
+    intro = {
+      "introduction": {
+        "server": {
+          "introData": {"pfProPrice4Introductions": [{"roomSize": "double", "price": 8000}]}
+        }
+      }
+    }
+    with pytest.raises(ParseError, match="雙人房"):
+      eztravel.collect(lambda url: state if "/results/" in url else intro, *WINDOW)
+
+  def test_intro_without_a_double_room_row_is_logged(self, caplog):
+    (sailing,) = eztravel.sailings_in_window([product()], *WINDOW)
+    intro = {"pfProPrice4Introductions": [{"htlNum": "4", "cond2Type": "1", "price": 6325}]}
+
+    with caplog.at_level("WARNING"):
+      deal = eztravel.build_deal(sailing, intro, None)
+
+    assert deal.price_note == eztravel.PRICE_NOTE_LIST
+    assert "雙人房" in caplog.text
 
   def test_same_sailing_from_two_products_keeps_the_cheaper(self):
     # 「週三出發」「週日出發」是不同商品編號，但同一天同一艘船就是同一航次
