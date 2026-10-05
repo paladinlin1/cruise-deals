@@ -30,7 +30,7 @@ from decimal import Decimal
 from pathlib import Path
 from urllib.parse import quote, urljoin
 
-from selectolax.parser import HTMLParser, Node
+from selectolax.lexbor import LexborHTMLParser as HTMLParser, LexborNode as Node
 
 from .. import config, normalize
 from ..models import Deal, utcnow
