@@ -188,6 +188,21 @@ EZTRAVEL_DEPARTURE_NAME = "基隆港出發"  # 列表商品的 departArea 寫法
 # 只能逐個亞洲葉節點航線查：沖繩、九州、韓國、日本環遊、日韓、亞洲多國、海上巡遊。
 EZTRAVEL_ROUTE_CODES: tuple[int, ...] = (332, 310, 311, 312, 313, 315, 323)
 
+# MSC 地中海郵輪美國站（AEM 網站，搜尋走自家代理的 Algolia API，httpx 直接 POST、不需 cookie）
+# 前面有 Akamai：User-Agent 太短（"Mozilla/5.0"）會回 401，要送完整的瀏覽器 UA。
+MSC_BASE = "https://www.msccruisesusa.com"
+MSC_SEARCH_URL = MSC_BASE + "/api-search/1/indexes/*/queries"
+# 每筆紀錄是「航次 × 艙等 × 票價方案」；deduplication 索引一條航線只給一筆，不能拿來逐日比價
+MSC_INDEX = "prod-en-us-cruises"
+# 商業區域：亞洲（基隆、東京、上海、那霸、仁川出發都在這裡），出發港在本地用 match_port 篩
+MSC_AREA = "FAE"
+MSC_DETAIL_URL = (
+  MSC_BASE + "/search/itinerary?passengers=2%7C0%7C0%7C0"
+  "&cruiseId={cruise_id}&itineraryCode={itin_cd}&viewPrice=person"
+)
+# Algolia 單頁上限 1000 筆；一個月窗口的亞洲航次約數十到一百多筆，一頁就夠
+MSC_HITS_PER_PAGE = 1000
+
 # 匯率來源（皆免金鑰）。台銀 rate.bot.com.tw 已上機器人挑戰頁，CI 不可用。
 FX_PRIMARY_URL = "https://open.er-api.com/v6/latest/USD"
 FX_FALLBACK_URL = "https://tw.rter.info/capi.php"
@@ -201,4 +216,6 @@ USER_AGENT = (
 )
 
 # 所有可用來源名稱（CLI --sources 用）
-ALL_SOURCES = ("icruise", "expedia", "cruisedirect", "asiayo", "bwt", "lion", "eztravel")
+ALL_SOURCES = (
+  "icruise", "expedia", "cruisedirect", "asiayo", "bwt", "lion", "eztravel", "msc"
+)

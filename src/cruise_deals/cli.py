@@ -89,6 +89,11 @@ def default_scrapers() -> dict[str, ScraperFn]:
       lookahead_days=opts.lookahead_days, headless=not opts.headed
     )
 
+  def run_msc(opts: argparse.Namespace) -> list[Deal]:
+    from .scrapers import msc
+
+    return msc.scrape(lookahead_days=opts.lookahead_days)
+
   return {
     "icruise": run_icruise,
     "expedia": run_expedia,
@@ -97,6 +102,7 @@ def default_scrapers() -> dict[str, ScraperFn]:
     "bwt": run_bwt,
     "lion": run_lion,
     "eztravel": run_eztravel,
+    "msc": run_msc,
   }
 
 

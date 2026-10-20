@@ -27,9 +27,12 @@
 | **bwt.com.tw**（百威旅遊） | TWD | ✅ 正常 | SSE JSON API，`httpx` 直接串流，不需瀏覽器 |
 | **liontravel.com**（雄獅旅遊） | TWD | ✅ 正常 | 搜尋 JSON API，`httpx` 直接 POST，不需 cookie 也不需瀏覽器 |
 | **eztravel.com.tw**（易遊網） | TWD | ✅ 正常 | Incapsula 保護，patchright 載入第一頁後其餘請求走 `page.request`，讀 `__NEXT_DATA__` |
+| **msccruisesusa.com**（MSC 地中海郵輪美國站） | USD | ✅ 正常 | 自家代理的 Algolia 搜尋 API，`httpx` 直接 POST，不需 cookie 也不需金鑰 |
 
 > 百威旅遊的郵輪團期最早在**三個月後**，所以在預設的一個月窗口下它常態回 0 筆。
 > 雄獅則是**一個月內的基隆／東京團期幾乎都「暫時額滿」**，額滿的不收，所以也常只有零星幾筆。
+> MSC 在亞洲只有榮耀號（MSC Bellissima）一艘，基隆／東京航次有季節性
+> （2026-10-20 實測最早一班是 11/21），窗口內沒有航次時同樣回 0 筆。
 > 這些都是正常狀態，不是壞掉；想看得更遠可以加 `--lookahead-days 180`。
 
 ### cruisedirect 的存取方式
@@ -303,6 +306,46 @@ Next.js 網站，資料在 `<script id="__NEXT_DATA__">` 裡，是台灣站裡�
 （`socket hang up`，實測 2026-09-17；住宅 IP 完全正常）。所以比照 cruisedirect，
 `EZTRAVEL_PROXY` 有設定時整個瀏覽器走家用路由器的 SOCKS5 通道。
 
+### MSC 美國站的存取方式
+
+網站是 Adobe AEM + React，結果頁的 HTML 只有骨架（航程卡片全是 skeleton），
+航次由前端打自家網域代理的 Algolia 搜尋 API 取得。實測（2026-10-20）
+**不需要 cookie 也不需要 Algolia 金鑰**（前端送的 `x-algolia-*` 標頭本來就是空字串，
+由代理自己補）：
+
+```
+POST https://www.msccruisesusa.com/api-search/1/indexes/*/queries
+{"requests": [{"indexName": "prod-en-us-cruises", "filters": "(commArea.key:FAE) AND …",
+               "hitsPerPage": 1000, "page": 0, "distinct": 0}]}
+```
+
+前面有 **Akamai**：User-Agent 只送 `Mozilla/5.0` 會回 401，送完整的瀏覽器 UA 就過。
+401／403 會回報成 BlockedError。GitHub Actions 的資料中心 IP 過不過得了還沒實測，
+若第一次排程就被擋，比照 cruisedirect 走 `proxy_from_env` 的家用通道。
+
+**要查 `prod-en-us-cruises`，不能用 Last Minute Deals 頁面查的
+`prod-en-us-itinerary-deduplication-relevance`**：後者一條航線只給一筆
+（所有出發日裡的最低價），跟 asiayo 的區間最低價是同一種陷阱。
+前者每筆紀錄是「航次 × 艙等 × 票價方案」，一個航次約 18 筆，來源內只留最便宜的。
+`distinct` 要設 0 自己收斂——Algolia 的 distinct 留的是排名最前的那筆，不一定最便宜。
+
+篩選條件：亞洲區（`commArea.key:FAE`，涵蓋基隆／東京／上海／那霸／仁川出發）、
+兩位成人、`hasAir:false`（機＋船套裝價格含機票，不收）、`prices.availability:true`，
+出發日用 `departureStartDateTimestamp`（出發日 UTC 午夜的**毫秒**）。出發港在本地用
+`match_port` 篩，不寫死港口代碼，日後多了橫濱出發也接得到。
+
+價格用 `prices.adultPrice`（兩人同房的每人價）加 `prices.portCharges`（每人港務費 7～10 美元），
+跟 cruisedirect 的「含稅費」對齊。**不用 `discountedPricesBySpecificPax`**：那是長者（SENIOR25）
+／會員（MSVG）限定的折扣價，標了 `paxType: ["SENIOR25"]` 的紀錄 `adultPrice` 仍是一般價。
+
+`numberOfNights` 已經是夜數。有單程航次（`BE20261121TYOKEE` 東京上、基隆下），
+到達港要看 `disembkPort`。停靠港 `visitingPorts` 含 `SEADAY`（海上航行日），要濾掉。
+
+Algolia 對**不存在的欄位是安靜地回 0 筆**，不會報錯。所以窗口內 0 筆時會再查一次
+不限日期的同條件筆數：亞洲區連一筆未來航次都沒有，就當成欄位改名、拋 ParseError。
+這道檢查抓不到的是**日期欄位 `departureStartDateTimestamp` 單獨改名**——那時不限日期的
+查詢照樣有資料，來源會「成功地」回 0 筆。長期一直 0 筆時先懷疑這個。
+
 ## 匯率與台幣比價
 
 台灣站報台幣、外國站報美元，不換算就比大小的話 379 美元會被判定比
@@ -369,21 +412,21 @@ patchright install chromium       # Expedia、易遊網 用
 # cruisedirect 用 SeleniumBase，會自動下載 uc_driver；Linux 另需 apt install xvfb
 
 python -m cruise_deals                                   # 全部來源
-python -m cruise_deals --sources icruise,asiayo,bwt,lion # 只跑免瀏覽器的來源（最快）
+python -m cruise_deals --sources icruise,asiayo,bwt,lion,msc # 只跑免瀏覽器的來源（最快）
 python -m cruise_deals --dry-run                         # 不寫檔，只印表格
 python -m cruise_deals --sources expedia,eztravel --headed # 有頭模式觀察瀏覽器
 python -m cruise_deals --lookahead-days 60               # 改成看兩個月
 python -m cruise_deals --fx-rate 31.97                   # 指定匯率，不連網查
 ```
 
-`icruise`、`asiayo`、`bwt`、`lion` 都是純 `httpx`，不需要 Chromium 也不需要 xvfb。
+`icruise`、`asiayo`、`bwt`、`lion`、`msc` 都是純 `httpx`，不需要 Chromium 也不需要 xvfb。
 
 離開碼：**所有**來源都失敗時為 1，否則為 0（部分失敗仍算成功）。
 
 ## 測試
 
 ```bash
-pytest -q          # 406 個測試，約 5 秒
+pytest -q          # 562 個測試，約 7 秒
 ```
 
 測試全部跑在存下來的**真實**回應上（`tests/fixtures/`），不需要網路。
@@ -418,7 +461,8 @@ src/cruise_deals/
 │   ├── asiayo.py        # httpx + Next.js RSC payload
 │   ├── bwt.py           # httpx + SSE JSON API
 │   ├── lion.py          # httpx + 搜尋 JSON API
-│   └── eztravel.py      # patchright 過 Incapsula + page.request 讀 __NEXT_DATA__
+│   ├── eztravel.py      # patchright 過 Incapsula + page.request 讀 __NEXT_DATA__
+│   └── msc.py           # httpx + MSC 美國站自家代理的 Algolia 搜尋 API
 ├── outputs/
 │   ├── tabular.py       # 合併邏輯、台幣換算、CSV／JSON、歷史快照
 │   └── page.py          # 自足的 GitHub Pages 表格網頁
@@ -477,6 +521,13 @@ scripts/
 - **易遊網的正常頁面也含 `_Incapsula_Resource`**，判斷被擋要看「沒有 `__NEXT_DATA__`
   且有 Incapsula 腳本」，只看後者會把每一頁都當成被擋。
 - **易遊網列表價是 3／4 人房的每人價**，要進商品頁取雙人房成人價才能跟其他來源比。
+- **MSC 的搜尋 API 會看 User-Agent**：`Mozilla/5.0` 回 401，完整的瀏覽器 UA 才過（Akamai）。
+- **MSC 的 Last Minute Deals 頁查的是「一條航線一筆」的 deduplication 索引**，
+  價格是所有出發日的最低價；逐日比價要改查 `prod-en-us-cruises`。
+- **MSC 的長者／會員價放在 `discountedPricesBySpecificPax`**，`adultPrice` 才是一般價；
+  拿前者比價會讓 MSC 看起來系統性地便宜 5～10%。
+- **Algolia 對不存在的欄位安靜地回 0 筆**。MSC 窗口內 0 筆時要再確認亞洲區還有未來航次，
+  否則欄位改名會被當成「今天沒船」。
 - **「航行天數」顯示的是天，資料存的是夜**（`Deal.nights`；`days` 是 +1 的換算）。
   外國站原生報「N Nights」、台灣站報「N 天」，去重鍵與各來源都以夜為準，
   只有網頁／CSV／CLI 給人看的地方換成天。JSON 兩個都有。
