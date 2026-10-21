@@ -2,9 +2,14 @@
 
 Next.js 網站，資料在頁面的 `<script id="__NEXT_DATA__">` 裡，結構化程度是
 台灣站裡最好的。但整站有 Incapsula 保護：httpx 直接請求只會拿到 212 bytes 的
-挑戰頁（含 `_Incapsula_Resource`）。實測（2026-09-17）patchright 無頭可過，
-而且**只要第一頁用瀏覽器載入過，之後的請求用 `page.request.get()` 就行**
-（共用 cookie、走瀏覽器的網路堆疊，每次 0.2 秒，不必再渲染頁面）。
+挑戰頁（含 `_Incapsula_Resource`）。**只要第一頁用瀏覽器載入過，之後的請求用
+`page.request.get()` 就行**（共用 cookie、走瀏覽器的網路堆疊，每次 0.2 秒，不必再渲染頁面）。
+
+2026-09-17 patchright 無頭還能過，但約 2026-10-05 起 Incapsula 對無頭瀏覽器
+一律出 hCaptcha 勾選框（換 UA、改用完整版 Chromium 的新式無頭都一樣，2026-10-20 實測 0／6）。
+有頭在同一天 5 次裡過了 2 次：前兩次過，之後同一個住宅 IP 累積多次失敗後就也被擋。
+所以比照 cruisedirect 改成有頭、Linux 上用 xvfb 提供虛擬顯示；
+這是「無頭確定不行」下的最佳嘗試，有頭在 CI 上能不能穩定過還待驗證。
 
 列表頁：`/pkgfrn/results/KEE/{航線代碼}?depDateFrom=YYYYMMDD&depDateTo=YYYYMMDD&pageSize=100`
 
@@ -44,9 +49,12 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 import re
+import sys
 import time
 from collections.abc import Callable
+from contextlib import AbstractContextManager, nullcontext
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta
 from decimal import Decimal
@@ -400,18 +408,34 @@ def _wait_for_next_data(page, timeout_s: float = 45.0) -> str:
     page.wait_for_timeout(1000)
 
 
-def launch_options(headless: bool) -> dict[str, Any]:
+def launch_options() -> dict[str, Any]:
   """chromium.launch() 的參數。
+
+  一律有頭：無頭瀏覽器會被 Incapsula 出 hCaptcha（見模組說明）。
 
   GitHub Actions 的資料中心 IP 過得了第一頁（Incapsula 有發 cookie），
   但第二個 page.request 就被掛斷（socket hang up）；住宅 IP 完全正常。
   所以比照 cruisedirect，有設 EZTRAVEL_PROXY 就整個瀏覽器走家用路由器的 SOCKS5 通道。
   """
-  options: dict[str, Any] = {"headless": headless}
+  options: dict[str, Any] = {"headless": False}
   proxy = proxy_from_env("EZTRAVEL_PROXY")
   if proxy:
     options["proxy"] = {"server": proxy}
   return options
+
+
+def needs_virtual_display() -> bool:
+  """Linux 上沒有顯示器（GitHub Actions）時要自己開 xvfb；已有 DISPLAY 就沿用。"""
+  return sys.platform.startswith("linux") and not os.environ.get("DISPLAY")
+
+
+def _virtual_display() -> AbstractContextManager[Any]:
+  if not needs_virtual_display():
+    return nullcontext()
+  # 延遲匯入：只有 Linux 無顯示器時才需要（需先 apt install xvfb）
+  from sbvirtualdisplay import Display
+
+  return Display(visible=False, size=(1400, 950))
 
 
 def scrape(
@@ -419,18 +443,24 @@ def scrape(
   lookahead_days: int = config.LOOKAHEAD_DAYS,
   headless: bool = True,
 ) -> list[Deal]:
-  """擷取易遊網上基隆港出發、指定日期窗口內、可報名的郵輪航次。"""
+  """擷取易遊網上基隆港出發、指定日期窗口內、可報名的郵輪航次。
+
+  headless 參數保留是為了與其他 scraper 介面一致，但無頭會被 hCaptcha 擋，
+  故實際一律以 xvfb（Linux）或真實視窗（Windows）執行。
+  """
   # 延遲匯入：沒裝瀏覽器套件時仍可只跑純 httpx 的來源
   from patchright.sync_api import sync_playwright
 
   start = start or date.today()
   end = start + timedelta(days=lookahead_days)
 
-  options = launch_options(headless)
+  if headless:
+    log.info("易遊網無頭會被 hCaptcha 擋，改用有頭模式")
+  options = launch_options()
   if "proxy" in options:
     log.info("易遊網透過代理連線：%s", options["proxy"]["server"])
 
-  with sync_playwright() as playwright:
+  with _virtual_display(), sync_playwright() as playwright:
     browser = playwright.chromium.launch(**options)
     try:
       page = browser.new_page(viewport={"width": 1400, "height": 950}, locale="zh-TW")

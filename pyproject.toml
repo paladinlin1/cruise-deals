@@ -18,6 +18,8 @@ browser = [
   "patchright>=1.49",
   # cruisedirect：唯一實測能通過其 Cloudflare 挑戰的方案（CDP Mode）
   "seleniumbase>=4.51",
+  # 易遊網：Linux 上以 xvfb 跑有頭瀏覽器（seleniumbase 也會帶進來，但這裡直接用到）
+  "sbvirtualdisplay>=1.4",
 ]
 dev = [
   "pytest>=8.0",

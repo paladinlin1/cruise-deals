@@ -51,9 +51,10 @@ jobs:
       - name: 安裝 Chromium（Expedia、易遊網 用）
         run: patchright install --with-deps chromium
 
-      - name: 安裝 xvfb（cruisedirect 用）
+      - name: 安裝 xvfb（cruisedirect、易遊網 用）
         # SeleniumBase 的 UC/CDP 模式在無頭下過不了 Cloudflare，
-        # 需要 xvfb 提供虛擬顯示，讓它以「有頭」方式執行。
+        # 易遊網的 Incapsula 也會對無頭瀏覽器出 hCaptcha；
+        # 需要 xvfb 提供虛擬顯示，讓它們以「有頭」方式執行。
         run: sudo apt-get update -qq && sudo apt-get install -y -qq xvfb
 
       - name: 執行測試

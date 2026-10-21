@@ -590,15 +590,41 @@ class TestProxy:
 
   def test_no_proxy_when_env_not_set(self, monkeypatch):
     monkeypatch.delenv("EZTRAVEL_PROXY", raising=False)
-    assert eztravel.launch_options(headless=True) == {"headless": True}
+    assert eztravel.launch_options() == {"headless": False}
 
   def test_socks5h_tunnel_is_passed_to_chromium_as_socks5(self, monkeypatch):
     # workflow 寫的是 curl 慣用的 socks5h，Chrome 不認得會安靜地忽略整個代理設定
     monkeypatch.setenv("EZTRAVEL_PROXY", "socks5h://127.0.0.1:1080")
-    assert eztravel.launch_options(headless=False) == {
+    assert eztravel.launch_options() == {
       "headless": False,
       "proxy": {"server": "socks5://127.0.0.1:1080"},
     }
+
+
+class TestHeaded:
+  """2026-10-05 起 Incapsula 對無頭瀏覽器一律出 hCaptcha（換 UA、新式無頭都沒用），
+  有頭至少還有機會過；所以一律有頭，Linux 沒有顯示器時自己開 xvfb。"""
+
+  def test_browser_is_always_headed(self, monkeypatch):
+    monkeypatch.delenv("EZTRAVEL_PROXY", raising=False)
+    assert eztravel.launch_options()["headless"] is False
+
+  def test_linux_without_display_needs_xvfb(self, monkeypatch):
+    # GitHub Actions 的情況
+    monkeypatch.setattr(eztravel.sys, "platform", "linux")
+    monkeypatch.delenv("DISPLAY", raising=False)
+    assert eztravel.needs_virtual_display() is True
+
+  def test_linux_with_display_uses_it(self, monkeypatch):
+    # 已經包在 xvfb-run 裡或是桌面 Linux，不要再開一個
+    monkeypatch.setattr(eztravel.sys, "platform", "linux")
+    monkeypatch.setenv("DISPLAY", ":99")
+    assert eztravel.needs_virtual_display() is False
+
+  def test_windows_opens_a_real_window(self, monkeypatch):
+    monkeypatch.setattr(eztravel.sys, "platform", "win32")
+    monkeypatch.delenv("DISPLAY", raising=False)
+    assert eztravel.needs_virtual_display() is False
 
 
 class TestUrls:

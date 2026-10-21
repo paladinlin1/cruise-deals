@@ -26,7 +26,7 @@
 | **asiayo.com** | TWD | ✅ 正常 | Next.js 伺服器渲染，`httpx` 讀 RSC payload，不需瀏覽器 |
 | **bwt.com.tw**（百威旅遊） | TWD | ✅ 正常 | SSE JSON API，`httpx` 直接串流，不需瀏覽器 |
 | **liontravel.com**（雄獅旅遊） | TWD | ✅ 正常 | 搜尋 JSON API，`httpx` 直接 POST，不需 cookie 也不需瀏覽器 |
-| **eztravel.com.tw**（易遊網） | TWD | ✅ 正常 | Incapsula 保護，patchright 載入第一頁後其餘請求走 `page.request`，讀 `__NEXT_DATA__` |
+| **eztravel.com.tw**（易遊網） | TWD | ✅ 正常 | Incapsula 保護，patchright **有頭**載入第一頁後其餘請求走 `page.request`，讀 `__NEXT_DATA__` |
 | **msccruisesusa.com**（MSC 地中海郵輪美國站） | USD | ✅ 正常 | 自家代理的 Algolia 搜尋 API，`httpx` 直接 POST，不需 cookie 也不需金鑰 |
 
 > 百威旅遊的郵輪團期最早在**三個月後**，所以在預設的一個月窗口下它常態回 0 筆。
@@ -266,13 +266,23 @@ Content-Type: application/json
 
 Next.js 網站，資料在 `<script id="__NEXT_DATA__">` 裡，是台灣站裡結構最乾淨的
 （出發港、停靠城市、天數、逐艙等價格都是欄位，不用猜標題）。但整站有 **Incapsula**：
-`httpx` 直接請求只會拿到 212 bytes 的挑戰頁。實測（2026-09-17）：
+`httpx` 直接請求只會拿到 212 bytes 的挑戰頁。實測：
 
-| 方式 | 結果 |
-|---|---|
-| `httpx` 直接請求 | ❌ 挑戰頁（`_Incapsula_Resource`） |
-| patchright 無頭載入第一頁 | ✅ 2～12 秒後拿到 `__NEXT_DATA__` |
-| 之後改用 `page.request.get()` | ✅ 共用 cookie，每次 0.2 秒，不必渲染 |
+| 方式 | 2026-09-17 | 2026-10-20 |
+|---|---|---|
+| `httpx` 直接請求 | ❌ 挑戰頁（`_Incapsula_Resource`） | ❌ |
+| patchright 無頭載入第一頁 | ✅ 2～12 秒後拿到 `__NEXT_DATA__` | ❌ **hCaptcha 勾選框** |
+| 無頭＋把 UA 的 `HeadlessChrome` 改成 `Chrome` | — | ❌ hCaptcha |
+| 完整版 Chromium 的新式無頭（`channel="chromium"`） | — | ❌ hCaptcha |
+| patchright 有頭 | — | ⚠️ 5 次過 2 次（前兩次過，同一 IP 連續失敗後也被擋） |
+| 之後改用 `page.request.get()` | ✅ 共用 cookie，每次 0.2 秒，不必渲染 | ✅（有頭過關時） |
+
+約 2026-10-05 起 Incapsula 對無頭瀏覽器一律出 hCaptcha（排程從 10/06 起天天失敗），
+所以比照 cruisedirect **改成有頭**：Linux 上沒有 `DISPLAY` 時用 `sbvirtualdisplay`
+自己開 xvfb，Windows 會短暫跳出一個瀏覽器視窗。有頭能不能在 CI 上穩定通過**還待驗證**。
+
+⚠️ 本機與 CI 的 SOCKS5 通道走的是**同一個家用 IP**，在本機連續測試失敗會拉低這個 IP
+在 Incapsula 的信譽，連帶影響當天的排程。除錯時一次只試一次，失敗就隔一段時間再試。
 
 所以瀏覽器只用來載入第一頁，之後的列表與商品頁全走 `page.request`（同 expedia 的做法）。
 
@@ -409,7 +419,8 @@ python -m venv .venv
 .venv\Scripts\activate            # Windows
 pip install -e ".[dev,browser]"
 patchright install chromium       # Expedia、易遊網 用
-# cruisedirect 用 SeleniumBase，會自動下載 uc_driver；Linux 另需 apt install xvfb
+# cruisedirect 用 SeleniumBase，會自動下載 uc_driver
+# cruisedirect、易遊網 都要有頭瀏覽器：Linux 另需 apt install xvfb
 
 python -m cruise_deals                                   # 全部來源
 python -m cruise_deals --sources icruise,asiayo,bwt,lion,msc # 只跑免瀏覽器的來源（最快）
@@ -461,7 +472,7 @@ src/cruise_deals/
 │   ├── asiayo.py        # httpx + Next.js RSC payload
 │   ├── bwt.py           # httpx + SSE JSON API
 │   ├── lion.py          # httpx + 搜尋 JSON API
-│   ├── eztravel.py      # patchright 過 Incapsula + page.request 讀 __NEXT_DATA__
+│   ├── eztravel.py      # patchright 有頭過 Incapsula + page.request 讀 __NEXT_DATA__
 │   └── msc.py           # httpx + MSC 美國站自家代理的 Algolia 搜尋 API
 ├── outputs/
 │   ├── tabular.py       # 合併邏輯、台幣換算、CSV／JSON、歷史快照
@@ -520,6 +531,8 @@ scripts/
   全球一個月內不可能沒有郵輪團。
 - **易遊網的正常頁面也含 `_Incapsula_Resource`**，判斷被擋要看「沒有 `__NEXT_DATA__`
   且有 Incapsula 腳本」，只看後者會把每一頁都當成被擋。
+- **易遊網的 Incapsula 對無頭瀏覽器出 hCaptcha**（2026-10-05 起），改 UA 也沒用；有頭時好時壞。
+  被擋時日誌只會看到「Incapsula 挑戰頁」，要截圖才看得出是 hCaptcha。
 - **易遊網列表價是 3／4 人房的每人價**，要進商品頁取雙人房成人價才能跟其他來源比。
 - **MSC 的搜尋 API 會看 User-Agent**：`Mozilla/5.0` 回 401，完整的瀏覽器 UA 才過（Akamai）。
 - **MSC 的 Last Minute Deals 頁查的是「一條航線一筆」的 deduplication 索引**，
