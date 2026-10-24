@@ -1,161 +1,75 @@
 {
-  "generated_at": "2026-10-23T23:42:22.767930+00:00",
+  "generated_at": "2026-10-24T22:50:33.392319+00:00",
   "run_report": {
-    "generated_at": "2026-10-23T23:42:22.767930+00:00",
+    "generated_at": "2026-10-24T22:50:33.392319+00:00",
     "sources": [
       {
         "source": "icruise",
         "ok": true,
-        "count": 23,
-        "duration_s": 16.32,
+        "count": 21,
+        "duration_s": 17.2,
         "error": null
       },
       {
         "source": "expedia",
         "ok": true,
-        "count": 10,
-        "duration_s": 8.95,
+        "count": 9,
+        "duration_s": 7.71,
         "error": null
       },
       {
         "source": "cruisedirect",
         "ok": true,
-        "count": 13,
-        "duration_s": 107.34,
+        "count": 10,
+        "duration_s": 94.38,
         "error": null
       },
       {
         "source": "asiayo",
         "ok": true,
-        "count": 0,
-        "duration_s": 21.8,
+        "count": 4,
+        "duration_s": 27.61,
         "error": null
       },
       {
         "source": "bwt",
         "ok": true,
         "count": 0,
-        "duration_s": 1.22,
+        "duration_s": 1.39,
         "error": null
       },
       {
         "source": "lion",
         "ok": true,
         "count": 2,
-        "duration_s": 2.04,
+        "duration_s": 1.83,
         "error": null
       },
       {
         "source": "eztravel",
         "ok": true,
-        "count": 5,
-        "duration_s": 29.56,
+        "count": 4,
+        "duration_s": 26.81,
         "error": null
       },
       {
         "source": "msc",
         "ok": true,
         "count": 0,
-        "duration_s": 1.0,
+        "duration_s": 0.93,
         "error": null
       }
     ],
     "warnings": []
   },
   "fx": {
-    "usd_twd": "32.591824",
-    "as_of": "2026-10-23",
+    "usd_twd": "32.587187",
+    "as_of": "2026-10-24",
     "source": "open.er-api.com",
     "stale": false
   },
-  "count": 29,
+  "count": 27,
   "deals": [
-    {
-      "source": "icruise",
-      "sail_date": "2026-10-24",
-      "depart_port": "Tokyo",
-      "depart_port_raw": "Tokyo",
-      "arrive_port": "Tokyo",
-      "ports_of_call": [
-        "Tokyo",
-        "Shimizu",
-        "Kagoshima",
-        "Nagasaki",
-        "Yeosu",
-        "Seoul (Incheon)",
-        "Cheju Do",
-        "Busan (Pusan)",
-        "Hakata",
-        "Cruising the Kanmon Strait",
-        "Kobe",
-        "Tokyo"
-      ],
-      "ship_name": "Westerdam",
-      "cruise_line": "Holland America Line",
-      "nights": 15,
-      "price": "3074",
-      "currency": "USD",
-      "price_note": "每人最低價（Interior）",
-      "detail_url": "https://www.icruise.com/c/itinDetail.php?CruiseItineraryID=14328184",
-      "scraped_at": "2026-10-23T23:39:30.847898+00:00",
-      "stale_since": null,
-      "other_sources": {
-        "cruisedirect": {
-          "price": "3074",
-          "currency": "USD",
-          "price_twd": "100187"
-        }
-      },
-      "price_twd": "100187",
-      "fx_rate": "32.591824",
-      "ship_name_raw": "",
-      "days": 16
-    },
-    {
-      "source": "icruise",
-      "sail_date": "2026-10-24",
-      "depart_port": "Tokyo",
-      "depart_port_raw": "Tokyo",
-      "arrive_port": "Hong Kong",
-      "ports_of_call": [
-        "Tokyo",
-        "Shimizu",
-        "Kagoshima",
-        "Nagasaki",
-        "Yeosu",
-        "Seoul (Incheon)",
-        "Cheju Do",
-        "Busan (Pusan)",
-        "Hakata",
-        "Cruising the Kanmon Strait",
-        "Kobe",
-        "Tokyo",
-        "Shimizu",
-        "Osaka",
-        "Kochi",
-        "Hiroshima",
-        "Cruising the Kanmon Strait",
-        "Hakata",
-        "Busan (Pusan)",
-        "Cheju Do",
-        "Shanghai",
-        "Hong Kong"
-      ],
-      "ship_name": "Westerdam",
-      "cruise_line": "Holland America Line",
-      "nights": 29,
-      "price": null,
-      "currency": "USD",
-      "price_note": "每人最低價（Balcony）",
-      "detail_url": "https://www.icruise.com/c/itinDetail.php?CruiseItineraryID=14319366",
-      "scraped_at": "2026-10-23T23:39:30.847898+00:00",
-      "stale_since": null,
-      "other_sources": {},
-      "price_twd": null,
-      "fx_rate": "32.591824",
-      "ship_name_raw": "",
-      "days": 30
-    },
     {
       "source": "expedia",
       "sail_date": "2026-10-26",
@@ -170,22 +84,22 @@
       "currency": "USD",
       "price_note": "各房型最低價（每人）",
       "detail_url": "https://bookus.expediacruises.com/swift/cruise/package/1564626?siid=1095905&lang=1",
-      "scraped_at": "2026-10-23T23:39:39.798067+00:00",
+      "scraped_at": "2026-10-24T22:48:00.426982+00:00",
       "stale_since": null,
       "other_sources": {
         "icruise": {
           "price": "8269",
           "currency": "USD",
-          "price_twd": "269502"
+          "price_twd": "269463"
         },
         "cruisedirect": {
           "price": "5682",
           "currency": "USD",
-          "price_twd": "185187"
+          "price_twd": "185160"
         }
       },
-      "price_twd": "185187",
-      "fx_rate": "32.591824",
+      "price_twd": "185160",
+      "fx_rate": "32.587187",
       "ship_name_raw": "",
       "days": 11
     },
@@ -203,22 +117,22 @@
       "currency": "USD",
       "price_note": "各房型最低價（每人）",
       "detail_url": "https://bookus.expediacruises.com/swift/cruise/package/1572458?siid=1095905&lang=1",
-      "scraped_at": "2026-10-23T23:39:39.798067+00:00",
+      "scraped_at": "2026-10-24T22:48:00.426982+00:00",
       "stale_since": null,
       "other_sources": {
         "icruise": {
           "price": "11470",
           "currency": "USD",
-          "price_twd": "373828"
+          "price_twd": "373775"
         },
         "cruisedirect": {
           "price": "10070",
           "currency": "USD",
-          "price_twd": "328200"
+          "price_twd": "328153"
         }
       },
-      "price_twd": "328200",
-      "fx_rate": "32.591824",
+      "price_twd": "328153",
+      "fx_rate": "32.587187",
       "ship_name_raw": "",
       "days": 21
     },
@@ -236,22 +150,22 @@
       "currency": "USD",
       "price_note": "各房型最低價（每人）",
       "detail_url": "https://bookus.expediacruises.com/swift/cruise/package/1572459?siid=1095905&lang=1",
-      "scraped_at": "2026-10-23T23:39:39.798067+00:00",
+      "scraped_at": "2026-10-24T22:48:00.426982+00:00",
       "stale_since": null,
       "other_sources": {
         "icruise": {
           "price": "18529",
           "currency": "USD",
-          "price_twd": "603894"
+          "price_twd": "603808"
         },
         "cruisedirect": {
           "price": "14333",
           "currency": "USD",
-          "price_twd": "467139"
+          "price_twd": "467072"
         }
       },
-      "price_twd": "467139",
-      "fx_rate": "32.591824",
+      "price_twd": "467072",
+      "fx_rate": "32.587187",
       "ship_name_raw": "",
       "days": 31
     },
@@ -269,22 +183,22 @@
       "currency": "USD",
       "price_note": "各房型最低價（每人）",
       "detail_url": "https://bookus.expediacruises.com/swift/cruise/package/1572949?siid=1095905&lang=1",
-      "scraped_at": "2026-10-23T23:39:39.798067+00:00",
+      "scraped_at": "2026-10-24T22:48:00.426982+00:00",
       "stale_since": null,
       "other_sources": {
         "icruise": {
           "price": "24486",
           "currency": "USD",
-          "price_twd": "798043"
+          "price_twd": "797930"
         },
         "cruisedirect": {
           "price": "19575",
           "currency": "USD",
-          "price_twd": "637985"
+          "price_twd": "637894"
         }
       },
-      "price_twd": "637985",
-      "fx_rate": "32.591824",
+      "price_twd": "637894",
+      "fx_rate": "32.587187",
       "ship_name_raw": "",
       "days": 42
     },
@@ -326,9 +240,9 @@
       "nights": 28,
       "price": "10306",
       "currency": "USD",
-      "price_note": "每人最低價（Interior）",
+      "price_note": "每人最低價（Oceanview）",
       "detail_url": "https://www.icruise.com/c/itinDetail.php?CruiseItineraryID=14320959",
-      "scraped_at": "2026-10-23T23:39:30.847898+00:00",
+      "scraped_at": "2026-10-24T22:47:52.718652+00:00",
       "stale_since": null,
       "other_sources": {
         "cruisedirect": {
@@ -337,8 +251,8 @@
           "price_twd": null
         }
       },
-      "price_twd": "335891",
-      "fx_rate": "32.591824",
+      "price_twd": "335844",
+      "fx_rate": "32.587187",
       "ship_name_raw": "",
       "days": 29
     },
@@ -368,58 +282,13 @@
       "nights": 14,
       "price": null,
       "currency": "USD",
-      "price_note": "每人最低價（Interior）",
+      "price_note": "每人最低價（Balcony）",
       "detail_url": "https://www.icruise.com/c/itinDetail.php?CruiseItineraryID=14321929",
-      "scraped_at": "2026-10-23T23:39:30.847898+00:00",
+      "scraped_at": "2026-10-24T22:47:52.718652+00:00",
       "stale_since": null,
       "other_sources": {},
       "price_twd": null,
-      "fx_rate": "32.591824",
-      "ship_name_raw": "",
-      "days": 15
-    },
-    {
-      "source": "icruise",
-      "sail_date": "2026-10-29",
-      "depart_port": "Tokyo",
-      "depart_port_raw": "Tokyo",
-      "arrive_port": "Yokohama",
-      "ports_of_call": [
-        "Tokyo",
-        "Ishinomaki",
-        "Hakodate",
-        "Aomori",
-        "Akita",
-        "Sakata Japan",
-        "Kanazawa",
-        "Busan (Pusan)",
-        "Shimonoseki",
-        "Cruising the Kanmon Strait",
-        "Hiroshima",
-        "Kochi",
-        "Osaka",
-        "Nagoya",
-        "Shimizu",
-        "Yokohama"
-      ],
-      "ship_name": "Norwegian Jade",
-      "cruise_line": "Norwegian Cruise Line",
-      "nights": 14,
-      "price": "1969",
-      "currency": "USD",
-      "price_note": "每人最低價（Interior）",
-      "detail_url": "https://www.icruise.com/c/itinDetail.php?CruiseItineraryID=14284189",
-      "scraped_at": "2026-10-23T23:39:30.847898+00:00",
-      "stale_since": null,
-      "other_sources": {
-        "cruisedirect": {
-          "price": "1969",
-          "currency": "USD",
-          "price_twd": "64173"
-        }
-      },
-      "price_twd": "64173",
-      "fx_rate": "32.591824",
+      "fx_rate": "32.587187",
       "ship_name_raw": "",
       "days": 15
     },
@@ -428,39 +297,81 @@
       "sail_date": "2026-10-29",
       "depart_port": "Tokyo",
       "depart_port_raw": "Tokyo",
-      "arrive_port": "Hong Kong, China",
+      "arrive_port": "Tokyo (yokohama), Japan",
       "ports_of_call": [
-        "Tokyo (yokohama), Japan",
-        "Mt Fuji (shimizu), Japan",
-        "Kyoto (osaka), Japan",
-        "Kyoto (osaka), Japan",
-        "Kobe, Japan",
+        "Tokyo, Japan",
+        "Sendai (ishinomaki), Japan",
+        "Hakodate, Japan",
+        "Aomori, Japan",
+        "Akita Japan",
+        "Sakata, Japan",
+        "Kanazawa, Japan",
+        "Busan, Korea, Republic Of (south)",
+        "Shimonoseki, Japan",
+        "Cruise Kanmon Strait, Japan",
+        "Hiroshima, Japan",
         "Kochi, Japan",
-        "Okinawa, Japan",
-        "Hualien, Taiwan, China",
-        "Taipei(keelung),taiwan,china",
-        "Taipei(keelung),taiwan,china",
-        "Hong Kong, China",
-        "Hong Kong, China"
+        "Kyoto Osaka Japan",
+        "Nagoya, Japan",
+        "Mount Fuji Shimizu, Japan",
+        "Tokyo (yokohama), Japan"
+      ],
+      "ship_name": "Norwegian Jade",
+      "cruise_line": "Norwegian Cruise Line",
+      "nights": 14,
+      "price": "1969",
+      "currency": "USD",
+      "price_note": "各房型最低價（每人，含稅費）",
+      "detail_url": "https://book.cruisedirect.com/swift/cruise/package/1554198?siid=294662",
+      "scraped_at": "2026-10-24T22:49:03.194897+00:00",
+      "stale_since": null,
+      "other_sources": {
+        "icruise": {
+          "price": "2069",
+          "currency": "USD",
+          "price_twd": "67423"
+        }
+      },
+      "price_twd": "64164",
+      "fx_rate": "32.587187",
+      "ship_name_raw": "",
+      "days": 15
+    },
+    {
+      "source": "icruise",
+      "sail_date": "2026-10-29",
+      "depart_port": "Yokohama",
+      "depart_port_raw": "Yokohama",
+      "arrive_port": "Hong Kong",
+      "ports_of_call": [
+        "Yokohama",
+        "Shimizu",
+        "Osaka",
+        "Kobe",
+        "Kochi",
+        "Okinawa",
+        "Hualien",
+        "Keelung (Taipei)",
+        "Hong Kong"
       ],
       "ship_name": "Celebrity Millennium",
       "cruise_line": "Celebrity Cruises",
       "nights": 14,
-      "price": "2249",
+      "price": "2320",
       "currency": "USD",
-      "price_note": "各房型最低價（每人，含稅費）",
-      "detail_url": "https://book.cruisedirect.com/swift/cruise/package/1563622?siid=294662",
-      "scraped_at": "2026-10-23T23:40:39.757292+00:00",
+      "price_note": "每人最低價（Oceanview）",
+      "detail_url": "https://www.icruise.com/c/itinDetail.php?CruiseItineraryID=14041782",
+      "scraped_at": "2026-10-24T22:47:52.718652+00:00",
       "stale_since": null,
       "other_sources": {
-        "icruise": {
-          "price": "2820",
+        "cruisedirect": {
+          "price": "2320",
           "currency": "USD",
-          "price_twd": "91909"
+          "price_twd": "75602"
         }
       },
-      "price_twd": "73299",
-      "fx_rate": "32.591824",
+      "price_twd": "75602",
+      "fx_rate": "32.587187",
       "ship_name_raw": "",
       "days": 15
     },
@@ -487,17 +398,17 @@
       "currency": "USD",
       "price_note": "每人最低價（Suite）",
       "detail_url": "https://www.icruise.com/c/itinDetail.php?CruiseItineraryID=14202860",
-      "scraped_at": "2026-10-23T23:39:30.847898+00:00",
+      "scraped_at": "2026-10-24T22:47:52.718652+00:00",
       "stale_since": null,
       "other_sources": {
         "expedia": {
           "price": "17500.0",
           "currency": "USD",
-          "price_twd": "570357"
+          "price_twd": "570276"
         }
       },
-      "price_twd": "453026",
-      "fx_rate": "32.591824",
+      "price_twd": "452962",
+      "fx_rate": "32.587187",
       "ship_name_raw": "",
       "days": 11
     },
@@ -524,45 +435,13 @@
       "currency": "USD",
       "price_note": "每人最低價（Suite）",
       "detail_url": "https://www.icruise.com/c/itinDetail.php?CruiseItineraryID=13998407",
-      "scraped_at": "2026-10-23T23:39:30.847898+00:00",
+      "scraped_at": "2026-10-24T22:47:52.718652+00:00",
       "stale_since": null,
       "other_sources": {},
-      "price_twd": "420435",
-      "fx_rate": "32.591824",
+      "price_twd": "420375",
+      "fx_rate": "32.587187",
       "ship_name_raw": "",
       "days": 17
-    },
-    {
-      "source": "icruise",
-      "sail_date": "2026-10-31",
-      "depart_port": "Tokyo",
-      "depart_port_raw": "Tokyo",
-      "arrive_port": "Hong Kong",
-      "ports_of_call": [
-        "Tokyo",
-        "Nagoya",
-        "Osaka",
-        "Cruising the Philippine Sea",
-        "Naha",
-        "Ishigaki",
-        "Keelung (Taipei)",
-        "Kaohsiung",
-        "Hong Kong"
-      ],
-      "ship_name": "Seven Seas Explorer",
-      "cruise_line": "Regent Seven Seas Cruises",
-      "nights": 10,
-      "price": null,
-      "currency": "USD",
-      "price_note": "每人最低價（Suite）",
-      "detail_url": "https://www.icruise.com/c/itinDetail.php?CruiseItineraryID=13928021",
-      "scraped_at": "2026-10-23T23:39:30.847898+00:00",
-      "stale_since": null,
-      "other_sources": {},
-      "price_twd": null,
-      "fx_rate": "32.591824",
-      "ship_name_raw": "",
-      "days": 11
     },
     {
       "source": "icruise",
@@ -596,32 +475,90 @@
       "currency": "USD",
       "price_note": "每人最低價（Suite）",
       "detail_url": "https://www.icruise.com/c/itinDetail.php?CruiseItineraryID=14167382",
-      "scraped_at": "2026-10-23T23:39:30.847898+00:00",
+      "scraped_at": "2026-10-24T22:47:52.718652+00:00",
       "stale_since": null,
       "other_sources": {},
       "price_twd": null,
-      "fx_rate": "32.591824",
+      "fx_rate": "32.587187",
       "ship_name_raw": "",
       "days": 23
     },
     {
-      "source": "eztravel",
+      "source": "icruise",
+      "sail_date": "2026-10-31",
+      "depart_port": "Tokyo",
+      "depart_port_raw": "Tokyo",
+      "arrive_port": "Hong Kong",
+      "ports_of_call": [
+        "Tokyo",
+        "Nagoya",
+        "Osaka",
+        "Cruising the Philippine Sea",
+        "Naha",
+        "Ishigaki",
+        "Keelung (Taipei)",
+        "Kaohsiung",
+        "Hong Kong"
+      ],
+      "ship_name": "Seven Seas Explorer",
+      "cruise_line": "Regent Seven Seas Cruises",
+      "nights": 10,
+      "price": null,
+      "currency": "USD",
+      "price_note": "每人最低價（Suite）",
+      "detail_url": "https://www.icruise.com/c/itinDetail.php?CruiseItineraryID=13928021",
+      "scraped_at": "2026-10-24T22:47:52.718652+00:00",
+      "stale_since": null,
+      "other_sources": {},
+      "price_twd": null,
+      "fx_rate": "32.587187",
+      "ship_name_raw": "",
+      "days": 11
+    },
+    {
+      "source": "asiayo",
+      "sail_date": "2026-11-01",
+      "depart_port": "Keelung",
+      "depart_port_raw": "基隆",
+      "arrive_port": "基隆港",
+      "ports_of_call": [
+        "基隆港"
+      ],
+      "ship_name": "Star Voyager",
+      "cruise_line": "Star Cruises",
+      "nights": 2,
+      "price": "37450",
+      "currency": "TWD",
+      "price_note": "行程總價（每人，2 人一室起）",
+      "detail_url": "https://asiayo.com/zh-tw/cruise/item/137488/?activityStartDate=2026-11-01",
+      "scraped_at": "2026-10-24T22:49:38.135146+00:00",
+      "stale_since": null,
+      "other_sources": {},
+      "price_twd": "37450",
+      "fx_rate": null,
+      "ship_name_raw": "探索星號",
+      "days": 3
+    },
+    {
+      "source": "asiayo",
       "sail_date": "2026-11-03",
       "depart_port": "Keelung",
-      "depart_port_raw": "基隆港出發",
-      "arrive_port": "Keelung",
+      "depart_port_raw": "基隆",
+      "arrive_port": "基隆港",
       "ports_of_call": [
-        "那霸",
-        "石垣島"
+        "基隆港",
+        "沖繩・那霸 NCT",
+        "石垣島",
+        "基隆港"
       ],
       "ship_name": "Star Voyager",
       "cruise_line": "Star Cruises",
       "nights": 3,
       "price": "11000",
       "currency": "TWD",
-      "price_note": "雙人房成人（每人）",
-      "detail_url": "https://vacation.eztravel.com.tw/pkgfrn/introduction/FRN0000020380/20261103",
-      "scraped_at": "2026-10-23T23:42:08.845576+00:00",
+      "price_note": "行程總價（每人，2 人一室起）",
+      "detail_url": "https://asiayo.com/zh-tw/cruise/item/54117/?activityStartDate=2026-11-03",
+      "scraped_at": "2026-10-24T22:49:40.123857+00:00",
       "stale_since": null,
       "other_sources": {},
       "price_twd": "11000",
@@ -656,22 +593,22 @@
       "currency": "USD",
       "price_note": "每人最低價（Suite）",
       "detail_url": "https://www.icruise.com/c/itinDetail.php?CruiseItineraryID=14039868",
-      "scraped_at": "2026-10-23T23:39:30.847898+00:00",
+      "scraped_at": "2026-10-24T22:47:52.718652+00:00",
       "stale_since": null,
       "other_sources": {
         "expedia": {
           "price": "9074.0",
           "currency": "USD",
-          "price_twd": "295738"
+          "price_twd": "295696"
         },
         "cruisedirect": {
           "price": "9074",
           "currency": "USD",
-          "price_twd": "295738"
+          "price_twd": "295696"
         }
       },
-      "price_twd": "295738",
-      "fx_rate": "32.591824",
+      "price_twd": "295696",
+      "fx_rate": "32.587187",
       "ship_name_raw": "",
       "days": 13
     },
@@ -708,11 +645,11 @@
       "currency": "USD",
       "price_note": "每人最低價（Suite）",
       "detail_url": "https://www.icruise.com/c/itinDetail.php?CruiseItineraryID=14279761",
-      "scraped_at": "2026-10-23T23:39:30.847898+00:00",
+      "scraped_at": "2026-10-24T22:47:52.718652+00:00",
       "stale_since": null,
       "other_sources": {},
-      "price_twd": "586620",
-      "fx_rate": "32.591824",
+      "price_twd": "586537",
+      "fx_rate": "32.587187",
       "ship_name_raw": "",
       "days": 27
     },
@@ -733,7 +670,7 @@
       "currency": "TWD",
       "price_note": "雙人房成人（每人）",
       "detail_url": "https://vacation.eztravel.com.tw/pkgfrn/introduction/FRN0000020379/20261108",
-      "scraped_at": "2026-10-23T23:42:08.845576+00:00",
+      "scraped_at": "2026-10-24T22:50:22.135917+00:00",
       "stale_since": null,
       "other_sources": {},
       "price_twd": "12950",
@@ -762,17 +699,17 @@
       "currency": "USD",
       "price_note": "每人最低價（Suite）",
       "detail_url": "https://www.icruise.com/c/itinDetail.php?CruiseItineraryID=14069253",
-      "scraped_at": "2026-10-23T23:39:30.847898+00:00",
+      "scraped_at": "2026-10-24T22:47:52.718652+00:00",
       "stale_since": null,
       "other_sources": {
         "expedia": {
           "price": "30100.0",
           "currency": "USD",
-          "price_twd": "981014"
+          "price_twd": "980874"
         }
       },
-      "price_twd": "527988",
-      "fx_rate": "32.591824",
+      "price_twd": "527912",
+      "fx_rate": "32.587187",
       "ship_name_raw": "",
       "days": 13
     },
@@ -800,13 +737,13 @@
       "nights": 14,
       "price": null,
       "currency": "USD",
-      "price_note": "每人最低價（Oceanview）",
+      "price_note": "每人最低價（Interior）",
       "detail_url": "https://www.icruise.com/c/itinDetail.php?CruiseItineraryID=14221870",
-      "scraped_at": "2026-10-23T23:39:30.847898+00:00",
+      "scraped_at": "2026-10-24T22:47:52.718652+00:00",
       "stale_since": null,
       "other_sources": {},
       "price_twd": null,
-      "fx_rate": "32.591824",
+      "fx_rate": "32.587187",
       "ship_name_raw": "",
       "days": 15
     },
@@ -841,13 +778,13 @@
       "nights": 28,
       "price": null,
       "currency": "USD",
-      "price_note": "每人最低價（Interior）",
+      "price_note": "每人最低價（Oceanview）",
       "detail_url": "https://www.icruise.com/c/itinDetail.php?CruiseItineraryID=14277762",
-      "scraped_at": "2026-10-23T23:39:30.847898+00:00",
+      "scraped_at": "2026-10-24T22:47:52.718652+00:00",
       "stale_since": null,
       "other_sources": {},
       "price_twd": null,
-      "fx_rate": "32.591824",
+      "fx_rate": "32.587187",
       "ship_name_raw": "",
       "days": 29
     },
@@ -867,7 +804,7 @@
       "currency": "TWD",
       "price_note": "雙人房成人（每人）",
       "detail_url": "https://vacation.eztravel.com.tw/pkgfrn/introduction/FRN0000020376/20261111",
-      "scraped_at": "2026-10-23T23:42:08.845576+00:00",
+      "scraped_at": "2026-10-24T22:50:22.135917+00:00",
       "stale_since": null,
       "other_sources": {},
       "price_twd": "8000",
@@ -903,17 +840,17 @@
       "currency": "USD",
       "price_note": "每人最低價（Oceanview）",
       "detail_url": "https://www.icruise.com/c/itinDetail.php?CruiseItineraryID=14320984",
-      "scraped_at": "2026-10-23T23:39:30.847898+00:00",
+      "scraped_at": "2026-10-24T22:47:52.718652+00:00",
       "stale_since": null,
       "other_sources": {
         "cruisedirect": {
           "price": "2892",
           "currency": "USD",
-          "price_twd": "94256"
+          "price_twd": "94242"
         }
       },
-      "price_twd": "94256",
-      "fx_rate": "32.591824",
+      "price_twd": "94242",
+      "fx_rate": "32.587187",
       "ship_name_raw": "",
       "days": 15
     },
@@ -951,13 +888,19 @@
       "nights": 28,
       "price": null,
       "currency": "USD",
-      "price_note": "每人最低價（Balcony）",
+      "price_note": "每人最低價（Interior）",
       "detail_url": "https://www.icruise.com/c/itinDetail.php?CruiseItineraryID=14320980",
-      "scraped_at": "2026-10-23T23:39:30.847898+00:00",
+      "scraped_at": "2026-10-24T22:47:52.718652+00:00",
       "stale_since": null,
-      "other_sources": {},
+      "other_sources": {
+        "expedia": {
+          "price": null,
+          "currency": "USD",
+          "price_twd": null
+        }
+      },
       "price_twd": null,
-      "fx_rate": "32.591824",
+      "fx_rate": "32.587187",
       "ship_name_raw": "",
       "days": 29
     },
@@ -975,44 +918,53 @@
       "currency": "USD",
       "price_note": "各房型最低價（每人）",
       "detail_url": "https://bookus.expediacruises.com/swift/cruise/package/1554207?siid=1095905&lang=1",
-      "scraped_at": "2026-10-23T23:39:39.798067+00:00",
+      "scraped_at": "2026-10-24T22:48:00.426982+00:00",
       "stale_since": null,
       "other_sources": {
         "icruise": {
           "price": "1809",
           "currency": "USD",
-          "price_twd": "58959"
+          "price_twd": "58950"
         },
         "cruisedirect": {
           "price": "1469",
           "currency": "USD",
-          "price_twd": "47877"
+          "price_twd": "47871"
         }
       },
-      "price_twd": "47877",
-      "fx_rate": "32.591824",
+      "price_twd": "47871",
+      "fx_rate": "32.587187",
       "ship_name_raw": "",
       "days": 10
     },
     {
-      "source": "lion",
+      "source": "asiayo",
       "sail_date": "2026-11-15",
       "depart_port": "Keelung",
       "depart_port_raw": "基隆",
-      "arrive_port": "Keelung",
+      "arrive_port": "基隆港",
       "ports_of_call": [
-        "鹿耳島·佐世保·那霸"
+        "基隆港",
+        "鹿兒島",
+        "佐世保(三浦碼頭)",
+        "沖繩・那霸 NCT",
+        "基隆港"
       ],
       "ship_name": "Star Voyager",
       "cruise_line": "Star Cruises",
       "nights": 5,
       "price": "18000",
       "currency": "TWD",
-      "price_note": "每人最低價（直客價）",
-      "detail_url": "https://travel.liontravel.com/detail?NormGroupID=2e4a3eea-a9a2-4d1f-87df-dedd0e28d973&GroupID=26JCN15STA6-ZP",
-      "scraped_at": "2026-10-23T23:41:52.213619+00:00",
+      "price_note": "行程總價（每人，2 人一室起）",
+      "detail_url": "https://asiayo.com/zh-tw/cruise/item/51219/?activityStartDate=2026-11-15",
+      "scraped_at": "2026-10-24T22:49:44.016701+00:00",
       "stale_since": null,
       "other_sources": {
+        "lion": {
+          "price": "18000",
+          "currency": "TWD",
+          "price_twd": "18000"
+        },
         "eztravel": {
           "price": "18000",
           "currency": "TWD",
@@ -1038,82 +990,50 @@
       "ship_name": "MSC Bellissima",
       "cruise_line": "MSC Cruises",
       "nights": 4,
-      "price": "419",
+      "price": null,
       "currency": "USD",
-      "price_note": "每人最低價（Interior）",
+      "price_note": "每人最低價（Inside）",
       "detail_url": "https://www.icruise.com/c/itinDetail.php?CruiseItineraryID=14322060",
-      "scraped_at": "2026-10-23T23:39:30.847898+00:00",
+      "scraped_at": "2026-10-24T22:47:52.718652+00:00",
       "stale_since": null,
-      "other_sources": {
-        "expedia": {
-          "price": "419.0",
-          "currency": "USD",
-          "price_twd": "13656"
-        },
-        "cruisedirect": {
-          "price": "419",
-          "currency": "USD",
-          "price_twd": "13656"
-        }
-      },
-      "price_twd": "13656",
-      "fx_rate": "32.591824",
+      "other_sources": {},
+      "price_twd": null,
+      "fx_rate": "32.587187",
       "ship_name_raw": "",
       "days": 5
     },
     {
-      "source": "expedia",
-      "sail_date": "2026-11-21",
-      "depart_port": "Tokyo",
-      "depart_port_raw": "Tokyo",
-      "arrive_port": "Naha",
-      "ports_of_call": [],
-      "ship_name": "MSC Bellissima",
-      "cruise_line": "MSC Cruises",
-      "nights": 6,
-      "price": "849.0",
-      "currency": "USD",
-      "price_note": "各房型最低價（每人）",
-      "detail_url": "https://bookus.expediacruises.com/swift/cruise/package/1622296?siid=1095905&lang=1",
-      "scraped_at": "2026-10-23T23:39:39.798067+00:00",
-      "stale_since": null,
-      "other_sources": {
-        "cruisedirect": {
-          "price": "849",
-          "currency": "USD",
-          "price_twd": "27670"
-        }
-      },
-      "price_twd": "27670",
-      "fx_rate": "32.591824",
-      "ship_name_raw": "",
-      "days": 7
-    },
-    {
-      "source": "eztravel",
+      "source": "asiayo",
       "sail_date": "2026-11-22",
       "depart_port": "Keelung",
-      "depart_port_raw": "基隆港出發",
-      "arrive_port": "Keelung",
+      "depart_port_raw": "基隆",
+      "arrive_port": "基隆港",
       "ports_of_call": [
-        "釜山",
+        "基隆港",
+        "釜山 BICT",
         "長崎",
-        "那霸"
+        "沖繩・那霸",
+        "基隆港"
       ],
       "ship_name": "Star Voyager",
       "cruise_line": "Star Cruises",
       "nights": 5,
       "price": "18000",
       "currency": "TWD",
-      "price_note": "雙人房成人（每人）",
-      "detail_url": "https://vacation.eztravel.com.tw/pkgfrn/introduction/FRN0000020393/20261122",
-      "scraped_at": "2026-10-23T23:42:08.845576+00:00",
+      "price_note": "行程總價（每人，2 人一室起）",
+      "detail_url": "https://asiayo.com/zh-tw/cruise/item/51226/?activityStartDate=2026-11-22",
+      "scraped_at": "2026-10-24T22:49:45.979653+00:00",
       "stale_since": null,
       "other_sources": {
         "lion": {
           "price": "29250",
           "currency": "TWD",
           "price_twd": "29250"
+        },
+        "eztravel": {
+          "price": "18000",
+          "currency": "TWD",
+          "price_twd": "18000"
         }
       },
       "price_twd": "18000",
