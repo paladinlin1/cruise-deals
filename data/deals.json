@@ -1,62 +1,62 @@
 {
-  "generated_at": "2026-11-10T03:06:16.364610+00:00",
+  "generated_at": "2026-11-11T01:00:30.331365+00:00",
   "run_report": {
-    "generated_at": "2026-11-10T03:06:16.364610+00:00",
+    "generated_at": "2026-11-11T01:00:30.331365+00:00",
     "sources": [
       {
         "source": "icruise",
         "ok": true,
         "count": 11,
-        "duration_s": 16.45,
+        "duration_s": 17.69,
         "error": null
       },
       {
         "source": "expedia",
         "ok": true,
         "count": 9,
-        "duration_s": 7.18,
+        "duration_s": 8.74,
         "error": null
       },
       {
         "source": "cruisedirect",
         "ok": true,
         "count": 10,
-        "duration_s": 78.17,
+        "duration_s": 64.95,
         "error": null
       },
       {
         "source": "asiayo",
         "ok": true,
-        "count": 14,
-        "duration_s": 27.65,
+        "count": 0,
+        "duration_s": 21.3,
         "error": null
       },
       {
         "source": "bwt",
         "ok": true,
         "count": 1,
-        "duration_s": 1.26,
+        "duration_s": 1.17,
         "error": null
       },
       {
         "source": "lion",
         "ok": true,
-        "count": 7,
-        "duration_s": 2.42,
+        "count": 8,
+        "duration_s": 6.89,
         "error": null
       },
       {
         "source": "eztravel",
         "ok": true,
-        "count": 1,
-        "duration_s": 19.25,
+        "count": 2,
+        "duration_s": 21.17,
         "error": null
       },
       {
         "source": "msc",
         "ok": true,
         "count": 5,
-        "duration_s": 0.61,
+        "duration_s": 1.82,
         "error": null
       }
     ],
@@ -68,7 +68,7 @@
     "source": "open.er-api.com",
     "stale": false
   },
-  "count": 21,
+  "count": 17,
   "deals": [
     {
       "source": "icruise",
@@ -98,7 +98,7 @@
       "currency": "USD",
       "price_note": "每人最低價（Interior）",
       "detail_url": "https://www.icruise.com/c/itinDetail.php?CruiseItineraryID=14320984",
-      "scraped_at": "2026-11-10T03:03:59.822662+00:00",
+      "scraped_at": "2026-11-11T00:58:24.288298+00:00",
       "stale_since": null,
       "other_sources": {
         "cruisedirect": {
@@ -146,9 +146,9 @@
       "nights": 28,
       "price": null,
       "currency": "USD",
-      "price_note": "每人最低價（Oceanview）",
+      "price_note": "每人最低價（Interior）",
       "detail_url": "https://www.icruise.com/c/itinDetail.php?CruiseItineraryID=14320980",
-      "scraped_at": "2026-11-10T03:03:59.822662+00:00",
+      "scraped_at": "2026-11-11T00:58:24.288298+00:00",
       "stale_since": null,
       "other_sources": {
         "expedia": {
@@ -192,18 +192,18 @@
       "currency": "USD",
       "price_note": "每人最低價（Interior）",
       "detail_url": "https://www.icruise.com/c/itinDetail.php?CruiseItineraryID=14074147",
-      "scraped_at": "2026-11-10T03:03:59.822662+00:00",
+      "scraped_at": "2026-11-11T00:58:24.288298+00:00",
       "stale_since": null,
       "other_sources": {
         "expedia": {
-          "price": "1469.0",
+          "price": "1419.0",
           "currency": "USD",
-          "price_twd": "48155"
+          "price_twd": "46516"
         },
         "cruisedirect": {
-          "price": "1469",
+          "price": "1419",
           "currency": "USD",
-          "price_twd": "48155"
+          "price_twd": "46516"
         }
       },
       "price_twd": "46516",
@@ -212,63 +212,28 @@
       "days": 10
     },
     {
-      "source": "asiayo",
-      "sail_date": "2026-11-15",
-      "depart_port": "Keelung",
-      "depart_port_raw": "基隆",
-      "arrive_port": "基隆港",
-      "ports_of_call": [
-        "基隆港",
-        "鹿兒島",
-        "佐世保(三浦碼頭)",
-        "沖繩・那霸 NCT",
-        "基隆港"
-      ],
-      "ship_name": "Star Voyager",
-      "cruise_line": "Star Cruises",
-      "nights": 5,
-      "price": "20250",
-      "currency": "TWD",
-      "price_note": "行程總價（每人，2 人一室起）",
-      "detail_url": "https://asiayo.com/zh-tw/cruise/item/51219/?activityStartDate=2026-11-15",
-      "scraped_at": "2026-11-10T03:05:28.023443+00:00",
-      "stale_since": null,
-      "other_sources": {},
-      "price_twd": "20250",
-      "fx_rate": null,
-      "ship_name_raw": "探索星號",
-      "days": 6
-    },
-    {
-      "source": "asiayo",
+      "source": "icruise",
       "sail_date": "2026-11-21",
       "depart_port": "Tokyo",
-      "depart_port_raw": "東京（東京/橫濱）",
-      "arrive_port": "|星期五",
+      "depart_port_raw": "Tokyo",
+      "arrive_port": "Naha",
       "ports_of_call": [
-        "| 星期六",
-        "| 星期日",
-        "| 星期一",
-        "| 星期二",
-        "| 星期三",
-        "| 星期四",
-        "|星期五"
+        "Tokyo",
+        "Ishigaki",
+        "Keelung (Taipei)",
+        "Miyako",
+        "Naha"
       ],
       "ship_name": "MSC Bellissima",
-      "cruise_line": "",
+      "cruise_line": "MSC Cruises",
       "nights": 6,
-      "price": "24715",
-      "currency": "TWD",
-      "price_note": "行程總價（每人，2 人一室起）",
-      "detail_url": "https://asiayo.com/zh-tw/cruise/item/140725/?activityStartDate=2026-11-21",
-      "scraped_at": "2026-11-10T03:05:44.591230+00:00",
+      "price": "829",
+      "currency": "USD",
+      "price_note": "每人最低價（Balcony）",
+      "detail_url": "https://www.icruise.com/c/itinDetail.php?CruiseItineraryID=14363079",
+      "scraped_at": "2026-11-11T00:58:24.288298+00:00",
       "stale_since": null,
       "other_sources": {
-        "icruise": {
-          "price": "829",
-          "currency": "USD",
-          "price_twd": "27175"
-        },
         "expedia": {
           "price": "829.0",
           "currency": "USD",
@@ -285,9 +250,9 @@
           "price_twd": "27503"
         }
       },
-      "price_twd": "24715",
-      "fx_rate": null,
-      "ship_name_raw": "MSC榮耀號",
+      "price_twd": "27175",
+      "fx_rate": "32.780875",
+      "ship_name_raw": "",
       "days": 7
     },
     {
@@ -308,7 +273,7 @@
       "currency": "USD",
       "price_note": "每人最低價（Suite）",
       "detail_url": "https://www.icruise.com/c/itinDetail.php?CruiseItineraryID=14322060",
-      "scraped_at": "2026-11-10T03:03:59.822662+00:00",
+      "scraped_at": "2026-11-11T00:58:24.288298+00:00",
       "stale_since": null,
       "other_sources": {
         "expedia": {
@@ -333,34 +298,6 @@
       "days": 5
     },
     {
-      "source": "asiayo",
-      "sail_date": "2026-11-22",
-      "depart_port": "Keelung",
-      "depart_port_raw": "基隆",
-      "arrive_port": "基隆港",
-      "ports_of_call": [
-        "基隆港",
-        "釜山 BICT",
-        "長崎",
-        "沖繩・那霸",
-        "基隆港"
-      ],
-      "ship_name": "Star Voyager",
-      "cruise_line": "Star Cruises",
-      "nights": 5,
-      "price": "22000",
-      "currency": "TWD",
-      "price_note": "行程總價（每人，2 人一室起）",
-      "detail_url": "https://asiayo.com/zh-tw/cruise/item/51226/?activityStartDate=2026-11-22",
-      "scraped_at": "2026-11-10T03:05:30.968164+00:00",
-      "stale_since": null,
-      "other_sources": {},
-      "price_twd": "22000",
-      "fx_rate": null,
-      "ship_name_raw": "探索星號",
-      "days": 6
-    },
-    {
       "source": "icruise",
       "sail_date": "2026-11-25",
       "depart_port": "Yokohama",
@@ -382,9 +319,9 @@
       "nights": 14,
       "price": "1512",
       "currency": "USD",
-      "price_note": "每人最低價（Interior）",
+      "price_note": "每人最低價（Balcony）",
       "detail_url": "https://www.icruise.com/c/itinDetail.php?CruiseItineraryID=14030067",
-      "scraped_at": "2026-11-10T03:03:59.822662+00:00",
+      "scraped_at": "2026-11-11T00:58:24.288298+00:00",
       "stale_since": null,
       "other_sources": {
         "expedia": {
@@ -423,7 +360,7 @@
       "currency": "USD",
       "price_note": "每人最低價（Suite）",
       "detail_url": "https://www.icruise.com/c/itinDetail.php?CruiseItineraryID=14362087",
-      "scraped_at": "2026-11-10T03:03:59.822662+00:00",
+      "scraped_at": "2026-11-11T00:58:24.288298+00:00",
       "stale_since": null,
       "other_sources": {
         "expedia": {
@@ -473,9 +410,9 @@
       "nights": 24,
       "price": null,
       "currency": "USD",
-      "price_note": "每人最低價（Balcony）",
+      "price_note": "每人最低價（Oceanview）",
       "detail_url": "https://www.icruise.com/c/itinDetail.php?CruiseItineraryID=14352537",
-      "scraped_at": "2026-11-10T03:03:59.822662+00:00",
+      "scraped_at": "2026-11-11T00:58:24.288298+00:00",
       "stale_since": null,
       "other_sources": {},
       "price_twd": null,
@@ -484,84 +421,26 @@
       "days": 25
     },
     {
-      "source": "asiayo",
+      "source": "lion",
       "sail_date": "2026-11-27",
       "depart_port": "Keelung",
       "depart_port_raw": "基隆",
-      "arrive_port": "基隆港",
-      "ports_of_call": [
-        "11/27航程 第一天：基隆港",
-        "基隆港"
-      ],
-      "ship_name": "Star Voyager",
-      "cruise_line": "Star Cruises",
-      "nights": 1,
-      "price": "2950",
-      "currency": "TWD",
-      "price_note": "行程總價（每人，2 人一室起）",
-      "detail_url": "https://asiayo.com/zh-tw/cruise/item/133643/?activityStartDate=2026-11-27",
-      "scraped_at": "2026-11-10T03:05:32.920020+00:00",
-      "stale_since": null,
-      "other_sources": {},
-      "price_twd": "2950",
-      "fx_rate": null,
-      "ship_name_raw": "探索星號",
-      "days": 2
-    },
-    {
-      "source": "asiayo",
-      "sail_date": "2026-11-27",
-      "depart_port": "Keelung",
-      "depart_port_raw": "基隆",
-      "arrive_port": "基隆港",
-      "ports_of_call": [
-        "基隆港"
-      ],
+      "arrive_port": "Keelung",
+      "ports_of_call": [],
       "ship_name": "Star Voyager",
       "cruise_line": "Star Cruises",
       "nights": 2,
       "price": "8000",
       "currency": "TWD",
-      "price_note": "行程總價（每人，2 人一室起）",
-      "detail_url": "https://asiayo.com/zh-tw/cruise/item/54113/?activityStartDate=2026-11-27",
-      "scraped_at": "2026-11-10T03:05:32.920020+00:00",
+      "price_note": "每人最低價（直客價）",
+      "detail_url": "https://travel.liontravel.com/detail?NormGroupID=6c530c2e-56c6-4c51-abb0-e54bf5b4fce8&GroupID=26JCN27UNI3-ZP",
+      "scraped_at": "2026-11-11T01:00:07.335987+00:00",
       "stale_since": null,
-      "other_sources": {
-        "lion": {
-          "price": "8000",
-          "currency": "TWD",
-          "price_twd": "8000"
-        }
-      },
+      "other_sources": {},
       "price_twd": "8000",
       "fx_rate": null,
       "ship_name_raw": "探索星號",
       "days": 3
-    },
-    {
-      "source": "asiayo",
-      "sail_date": "2026-11-28",
-      "depart_port": "Keelung",
-      "depart_port_raw": "基隆",
-      "arrive_port": "基隆港",
-      "ports_of_call": [
-        "11/27航程 第一天：基隆港",
-        "基隆港"
-      ],
-      "ship_name": "Star Voyager",
-      "cruise_line": "Star Cruises",
-      "nights": 1,
-      "price": "2950",
-      "currency": "TWD",
-      "price_note": "行程總價（每人，2 人一室起）",
-      "detail_url": "https://asiayo.com/zh-tw/cruise/item/133643/?activityStartDate=2026-11-28",
-      "scraped_at": "2026-11-10T03:05:32.920020+00:00",
-      "stale_since": null,
-      "other_sources": {},
-      "price_twd": "2950",
-      "fx_rate": null,
-      "ship_name_raw": "探索星號",
-      "days": 2
     },
     {
       "source": "bwt",
@@ -581,7 +460,7 @@
       "currency": "TWD",
       "price_note": "團費（每人，2 人一室）",
       "detail_url": "https://www.bwt.com.tw/Tour/KLM06261129A",
-      "scraped_at": "2026-11-10T03:05:54.079608+00:00",
+      "scraped_at": "2026-11-11T01:00:00.446104+00:00",
       "stale_since": null,
       "other_sources": {
         "icruise": {
@@ -599,15 +478,10 @@
           "currency": "USD",
           "price_twd": "15374"
         },
-        "asiayo": {
-          "price": "25400",
-          "currency": "TWD",
-          "price_twd": "25400"
-        },
         "lion": {
-          "price": "27900",
+          "price": "14900",
           "currency": "TWD",
-          "price_twd": "27900"
+          "price_twd": "14900"
         },
         "msc": {
           "price": "479",
@@ -621,32 +495,24 @@
       "days": 6
     },
     {
-      "source": "asiayo",
+      "source": "lion",
       "sail_date": "2026-11-29",
       "depart_port": "Keelung",
       "depart_port_raw": "基隆",
-      "arrive_port": "基隆港",
+      "arrive_port": "Keelung",
       "ports_of_call": [
-        "基隆港",
-        "神戶",
-        "高知",
-        "基隆港"
+        "神戶高知"
       ],
       "ship_name": "Star Voyager",
       "cruise_line": "Star Cruises",
       "nights": 5,
       "price": "18000",
       "currency": "TWD",
-      "price_note": "行程總價（每人，2 人一室起）",
-      "detail_url": "https://asiayo.com/zh-tw/cruise/item/54118/?activityStartDate=2026-11-29",
-      "scraped_at": "2026-11-10T03:05:32.920020+00:00",
+      "price_note": "每人最低價（直客價）",
+      "detail_url": "https://travel.liontravel.com/detail?NormGroupID=8e26d8e9-da4f-4758-ae14-e370632f1d9d&GroupID=26JCN29STA6-ZP",
+      "scraped_at": "2026-11-11T01:00:07.335987+00:00",
       "stale_since": null,
       "other_sources": {
-        "lion": {
-          "price": "18000",
-          "currency": "TWD",
-          "price_twd": "18000"
-        },
         "eztravel": {
           "price": "18000",
           "currency": "TWD",
@@ -659,40 +525,26 @@
       "days": 6
     },
     {
-      "source": "asiayo",
+      "source": "expedia",
       "sail_date": "2026-11-30",
-      "depart_port": "Yokohama",
-      "depart_port_raw": "東京（東京/橫濱）",
-      "arrive_port": "中國香港",
-      "ports_of_call": [
-        "日本東京（橫濱）",
-        "富士山（清水），日本",
-        "日本京都（大阪）",
-        "日本高知",
-        "日本廣島",
-        "日本宮古島（沖繩）",
-        "台北（基隆），台灣",
-        "中國香港"
-      ],
+      "depart_port": "Tokyo",
+      "depart_port_raw": "Tokyo",
+      "arrive_port": "Hong Kong",
+      "ports_of_call": [],
       "ship_name": "Norwegian Jade",
-      "cruise_line": "",
+      "cruise_line": "Norwegian Cruise Line",
       "nights": 9,
-      "price": "65637",
-      "currency": "TWD",
-      "price_note": "行程總價（每人，2 人一室起）",
-      "detail_url": "https://asiayo.com/zh-tw/cruise/item/141788/?activityStartDate=2026-11-30",
-      "scraped_at": "2026-11-10T03:05:48.578197+00:00",
+      "price": "2116.0",
+      "currency": "USD",
+      "price_note": "各房型最低價（每人）",
+      "detail_url": "https://bookus.expediacruises.com/swift/cruise/package/1554225?siid=1095905&lang=1",
+      "scraped_at": "2026-11-11T00:58:33.021559+00:00",
       "stale_since": null,
       "other_sources": {
         "icruise": {
-          "price": "4946",
+          "price": "4609",
           "currency": "USD",
-          "price_twd": "162134"
-        },
-        "expedia": {
-          "price": "2116.0",
-          "currency": "USD",
-          "price_twd": "69364"
+          "price_twd": "151087"
         },
         "cruisedirect": {
           "price": "2749",
@@ -700,36 +552,28 @@
           "price_twd": "90115"
         }
       },
-      "price_twd": "65637",
-      "fx_rate": null,
-      "ship_name_raw": "挪威翡翠號 Norwegian Jade",
+      "price_twd": "69364",
+      "fx_rate": "32.780875",
+      "ship_name_raw": "",
       "days": 10
     },
     {
-      "source": "asiayo",
+      "source": "lion",
       "sail_date": "2026-12-04",
       "depart_port": "Keelung",
       "depart_port_raw": "基隆",
-      "arrive_port": "基隆港",
-      "ports_of_call": [
-        "基隆港"
-      ],
+      "arrive_port": "Keelung",
+      "ports_of_call": [],
       "ship_name": "Star Voyager",
       "cruise_line": "Star Cruises",
       "nights": 2,
       "price": "8000",
       "currency": "TWD",
-      "price_note": "行程總價（每人，2 人一室起）",
-      "detail_url": "https://asiayo.com/zh-tw/cruise/item/54113/?activityStartDate=2026-12-04",
-      "scraped_at": "2026-11-10T03:05:34.872232+00:00",
+      "price_note": "每人最低價（直客價）",
+      "detail_url": "https://travel.liontravel.com/detail?NormGroupID=6c530c2e-56c6-4c51-abb0-e54bf5b4fce8&GroupID=26JCD04UNI3-ZP",
+      "scraped_at": "2026-11-11T01:00:07.335987+00:00",
       "stale_since": null,
-      "other_sources": {
-        "lion": {
-          "price": "8000",
-          "currency": "TWD",
-          "price_twd": "8000"
-        }
-      },
+      "other_sources": {},
       "price_twd": "8000",
       "fx_rate": null,
       "ship_name_raw": "探索星號",
@@ -749,7 +593,7 @@
       "currency": "TWD",
       "price_note": "每人最低價（直客價）",
       "detail_url": "https://travel.liontravel.com/detail?NormGroupID=d25578b3-dafa-440f-982a-479a9f0e73f4&GroupID=26JCD04MSC5-ZP",
-      "scraped_at": "2026-11-10T03:05:56.502470+00:00",
+      "scraped_at": "2026-11-11T01:00:07.335987+00:00",
       "stale_since": null,
       "other_sources": {
         "icruise": {
@@ -767,11 +611,6 @@
           "currency": "USD",
           "price_twd": "56154"
         },
-        "asiayo": {
-          "price": "31400",
-          "currency": "TWD",
-          "price_twd": "31400"
-        },
         "msc": {
           "price": "1721",
           "currency": "USD",
@@ -784,97 +623,81 @@
       "days": 5
     },
     {
-      "source": "asiayo",
-      "sail_date": "2026-12-06",
-      "depart_port": "Keelung",
-      "depart_port_raw": "基隆",
-      "arrive_port": "基隆港",
-      "ports_of_call": [
-        "基隆港",
-        "那霸",
-        "基隆港"
-      ],
-      "ship_name": "Star Voyager",
-      "cruise_line": "Star Cruises",
-      "nights": 2,
-      "price": "29300",
-      "currency": "TWD",
-      "price_note": "行程總價（每人，2 人一室起）",
-      "detail_url": "https://asiayo.com/zh-tw/cruise/item/54112/?activityStartDate=2026-12-06",
-      "scraped_at": "2026-11-10T03:05:36.800748+00:00",
-      "stale_since": null,
-      "other_sources": {},
-      "price_twd": "29300",
-      "fx_rate": null,
-      "ship_name_raw": "探索星號",
-      "days": 3
-    },
-    {
-      "source": "asiayo",
+      "source": "lion",
       "sail_date": "2026-12-08",
       "depart_port": "Keelung",
       "depart_port_raw": "基隆",
-      "arrive_port": "基隆港",
+      "arrive_port": "Keelung",
       "ports_of_call": [
-        "基隆港",
-        "沖繩・那霸 NCT",
-        "石垣島",
-        "基隆港"
+        "那霸",
+        "石垣島"
       ],
       "ship_name": "Star Voyager",
       "cruise_line": "Star Cruises",
       "nights": 3,
-      "price": "11000",
+      "price": "18950",
       "currency": "TWD",
-      "price_note": "行程總價（每人，2 人一室起）",
-      "detail_url": "https://asiayo.com/zh-tw/cruise/item/54117/?activityStartDate=2026-12-08",
-      "scraped_at": "2026-11-10T03:05:36.800748+00:00",
+      "price_note": "每人最低價（直客價）",
+      "detail_url": "https://travel.liontravel.com/detail?NormGroupID=1112ce6a-4888-4627-a904-0333a9233da6&GroupID=26JCD08SN-T",
+      "scraped_at": "2026-11-11T01:00:07.335987+00:00",
       "stale_since": null,
-      "other_sources": {
-        "lion": {
-          "price": "18950",
-          "currency": "TWD",
-          "price_twd": "18950"
-        }
-      },
-      "price_twd": "11000",
+      "other_sources": {},
+      "price_twd": "18950",
       "fx_rate": null,
       "ship_name_raw": "探索星號",
       "days": 4
     },
     {
-      "source": "asiayo",
+      "source": "lion",
       "sail_date": "2026-12-08",
       "depart_port": "Keelung",
       "depart_port_raw": "基隆",
-      "arrive_port": "基隆",
-      "ports_of_call": [
-        "基隆",
-        "宮古島",
-        "那霸‧日本沖繩",
-        "石垣島",
-        "基隆"
-      ],
+      "arrive_port": "Keelung",
+      "ports_of_call": [],
       "ship_name": "MSC Bellissima",
       "cruise_line": "MSC Cruises",
       "nights": 4,
-      "price": "21400",
+      "price": "23900",
       "currency": "TWD",
-      "price_note": "行程總價（每人，2 人一室起）",
-      "detail_url": "https://asiayo.com/zh-tw/cruise/item/45840/?activityStartDate=2026-12-08",
-      "scraped_at": "2026-11-10T03:05:36.800748+00:00",
+      "price_note": "每人最低價（直客價）",
+      "detail_url": "https://travel.liontravel.com/detail?NormGroupID=d25578b3-dafa-440f-982a-479a9f0e73f4&GroupID=26JCD08MSC5-ZP",
+      "scraped_at": "2026-11-11T01:00:07.335987+00:00",
       "stale_since": null,
-      "other_sources": {
-        "lion": {
-          "price": "23900",
-          "currency": "TWD",
-          "price_twd": "23900"
-        }
-      },
-      "price_twd": "21400",
+      "other_sources": {},
+      "price_twd": "23900",
       "fx_rate": null,
       "ship_name_raw": "榮耀號",
       "days": 5
+    },
+    {
+      "source": "lion",
+      "sail_date": "2026-12-11",
+      "depart_port": "Keelung",
+      "depart_port_raw": "基隆",
+      "arrive_port": "Keelung",
+      "ports_of_call": [
+        "石垣島"
+      ],
+      "ship_name": "Star Voyager",
+      "cruise_line": "Star Cruises",
+      "nights": 2,
+      "price": "9300",
+      "currency": "TWD",
+      "price_note": "每人最低價（直客價）",
+      "detail_url": "https://travel.liontravel.com/detail?NormGroupID=cd540089-5e76-4732-b9c4-dcf53170e80b&GroupID=26JCD11STA3-ZP",
+      "scraped_at": "2026-11-11T01:00:07.335987+00:00",
+      "stale_since": null,
+      "other_sources": {
+        "eztravel": {
+          "price": "9300",
+          "currency": "TWD",
+          "price_twd": "9300"
+        }
+      },
+      "price_twd": "9300",
+      "fx_rate": null,
+      "ship_name_raw": "探索星號",
+      "days": 3
     }
   ]
 }
